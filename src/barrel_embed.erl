@@ -8,6 +8,10 @@
 %%% - `local': Local Python with sentence-transformers (CPU, no external calls)
 %%% - `ollama': Local Ollama server
 %%% - `openai': OpenAI Embeddings API (requires API key)
+%%% - `fastembed': FastEmbed ONNX-based embeddings (lighter than sentence-transformers)
+%%% - `splade': SPLADE sparse embeddings for hybrid search
+%%% - `colbert': ColBERT multi-vector embeddings for fine-grained matching
+%%% - `clip': CLIP image/text cross-modal embeddings
 %%%
 %%% == Configuration ==
 %%% ```
@@ -180,6 +184,10 @@ normalize_providers(Providers) when is_list(Providers) ->
 provider_module(local) -> barrel_embed_local;
 provider_module(ollama) -> barrel_embed_ollama;
 provider_module(openai) -> barrel_embed_openai;
+provider_module(fastembed) -> barrel_embed_fastembed;
+provider_module(splade) -> barrel_embed_splade;
+provider_module(colbert) -> barrel_embed_colbert;
+provider_module(clip) -> barrel_embed_clip;
 provider_module(Module) when is_atom(Module) -> Module.
 
 %% Initialize a provider

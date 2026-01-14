@@ -2,6 +2,7 @@
  [{description, "Lightweight embedding generation for Erlang"},
   {vsn, "0.1.0"},
   {registered, []},
+  {mod, {barrel_embed_app, []}},
   {applications,
    [kernel,
     stdlib,
