@@ -1,0 +1,51 @@
+site_name: barrel_embed
+site_description: Lightweight embedding generation for Erlang
+site_url: https://barrel-db.gitlab.io/barrel-embed
+
+repo_url: https://gitlab.enki.io/barrel-db/barrel-embed
+repo_name: barrel-db/barrel-embed
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - tables
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Providers:
+    - Overview: providers/index.md
+    - Ollama: providers/ollama.md
+    - OpenAI: providers/openai.md
+    - Local: providers/local.md
+    - FastEmbed: providers/fastembed.md
+    - SPLADE: providers/splade.md
+    - ColBERT: providers/colbert.md
+    - CLIP: providers/clip.md
+  - API Reference: api.md
+  - Changelog: changelog.md
