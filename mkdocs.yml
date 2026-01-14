@@ -38,6 +38,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Choosing a Provider: choosing-provider.md
   - Providers:
     - Overview: providers/index.md
     - Ollama: providers/ollama.md
