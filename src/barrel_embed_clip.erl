@@ -92,47 +92,41 @@ init(Config) ->
     %% Validate model (warning only)
     validate_model(Model),
 
-    %% Find the Python script
-    ScriptPath = find_image_script(),
+    %% Build args for python -m barrel_embed
+    Args = ["-m", "barrel_embed",
+            "--provider", "clip",
+            "--model", Model],
 
-    case ScriptPath of
-        {ok, Script} ->
-            PortOpts = [
-                {args, [Script, Model]},
-                {line, 10000000},
-                binary,
-                use_stdio,
-                exit_status
-            ],
-            try
-                Port = open_port({spawn_executable, Python}, PortOpts),
-                case port_command_sync(Port, #{action => info}, Timeout) of
-                    {ok, #{<<"ok">> := true, <<"dimensions">> := Dims}} ->
-                        NewConfig = Config#{
-                            port => Port,
-                            dimension => Dims,
-                            timeout => Timeout
-                        },
-                        {ok, NewConfig};
-                    {ok, #{<<"ok">> := false, <<"error">> := Err}} ->
-                        catch port_close(Port),
-                        {error, {python_error, Err}};
-                    {error, Reason} ->
-                        catch port_close(Port),
-                        {error, Reason}
-                end
-            catch
-                error:PortReason ->
-                    {error, {port_open_failed, PortReason}}
+    Opts = [{timeout, Timeout}, {priv_dir, get_priv_dir()}],
+
+    case barrel_embed_port_server:start_link(Python, Args, Opts) of
+        {ok, Server} ->
+            case barrel_embed_port_server:info(Server, Timeout) of
+                {ok, #{dimensions := Dims}} ->
+                    {ok, Config#{
+                        server => Server,
+                        dimension => Dims,
+                        timeout => Timeout
+                    }};
+                {ok, _} ->
+                    %% No dimensions in response, use default
+                    {ok, Config#{
+                        server => Server,
+                        dimension => ?DEFAULT_DIMENSION,
+                        timeout => Timeout
+                    }};
+                {error, Reason} ->
+                    barrel_embed_port_server:stop(Server),
+                    {error, Reason}
             end;
-        {error, ScriptError} ->
-            {error, ScriptError}
+        {error, Reason} ->
+            {error, Reason}
     end.
 
 %% @doc Check if provider is available.
 -spec available(map()) -> boolean().
-available(#{port := Port}) ->
-    erlang:port_info(Port) =/= undefined;
+available(#{server := Server}) ->
+    is_process_alive(Server);
 available(_Config) ->
     false.
 
@@ -147,27 +141,10 @@ embed(Text, Config) ->
 
 %% @doc Generate text embeddings for batch.
 -spec embed_batch([binary()], map()) -> {ok, [[float()]]} | {error, term()}.
-embed_batch(Texts, #{port := Port, timeout := Timeout}) ->
-    case barrel_embed_python_queue:acquire(Timeout) of
-        ok ->
-            try
-                Request = #{action => embed_text, texts => Texts},
-                case port_command_sync(Port, Request, Timeout) of
-                    {ok, #{<<"ok">> := true, <<"embeddings">> := Embeddings}} ->
-                        {ok, Embeddings};
-                    {ok, #{<<"ok">> := false, <<"error">> := Err}} ->
-                        {error, {python_error, Err}};
-                    {error, Reason} ->
-                        {error, Reason}
-                end
-            after
-                barrel_embed_python_queue:release()
-            end;
-        {error, timeout} ->
-            {error, queue_timeout}
-    end;
+embed_batch(Texts, #{server := Server, timeout := Timeout}) ->
+    barrel_embed_port_server:embed_batch(Server, Texts, Timeout);
 embed_batch(_Texts, _Config) ->
-    {error, port_not_initialized}.
+    {error, server_not_initialized}.
 
 %%====================================================================
 %% Image Embedding API
@@ -185,70 +162,19 @@ embed_image(ImageBase64, Config) ->
 %% @doc Generate embeddings for multiple images.
 %% Images should be base64-encoded.
 -spec embed_image_batch([binary()], map()) -> {ok, [[float()]]} | {error, term()}.
-embed_image_batch(Images, #{port := Port, timeout := Timeout}) ->
-    case barrel_embed_python_queue:acquire(Timeout) of
-        ok ->
-            try
-                Request = #{action => embed_image, images => Images},
-                case port_command_sync(Port, Request, Timeout) of
-                    {ok, #{<<"ok">> := true, <<"embeddings">> := Embeddings}} ->
-                        {ok, Embeddings};
-                    {ok, #{<<"ok">> := false, <<"error">> := Err}} ->
-                        {error, {python_error, Err}};
-                    {error, Reason} ->
-                        {error, Reason}
-                end
-            after
-                barrel_embed_python_queue:release()
-            end;
-        {error, timeout} ->
-            {error, queue_timeout}
-    end;
+embed_image_batch(Images, #{server := Server, timeout := Timeout}) ->
+    barrel_embed_port_server:embed_image_batch(Server, Images, Timeout);
 embed_image_batch(_Images, _Config) ->
-    {error, port_not_initialized}.
+    {error, server_not_initialized}.
 
 %%====================================================================
 %% Internal Functions
 %%====================================================================
 
-%% @private
-find_image_script() ->
+get_priv_dir() ->
     case code:priv_dir(barrel_embed) of
-        {error, bad_name} ->
-            case filelib:is_file("priv/image_server.py") of
-                true -> {ok, "priv/image_server.py"};
-                false ->
-                    case filelib:is_file("../priv/image_server.py") of
-                        true -> {ok, "../priv/image_server.py"};
-                        false -> {error, script_not_found}
-                    end
-            end;
-        PrivDir ->
-            Script = filename:join(PrivDir, "image_server.py"),
-            case filelib:is_file(Script) of
-                true -> {ok, Script};
-                false -> {error, script_not_found}
-            end
-    end.
-
-%% @private
-port_command_sync(Port, Request, Timeout) ->
-    Json = iolist_to_binary(json:encode(Request)),
-    true = port_command(Port, [Json, "\n"]),
-
-    receive
-        {Port, {data, {eol, Line}}} ->
-            try
-                Response = json:decode(Line),
-                {ok, Response}
-            catch
-                _:Reason ->
-                    {error, {json_decode_failed, Reason}}
-            end;
-        {Port, {exit_status, Status}} ->
-            {error, {port_exited, Status}}
-    after Timeout ->
-        {error, timeout}
+        {error, bad_name} -> "priv";
+        Dir -> Dir
     end.
 
 %% @private

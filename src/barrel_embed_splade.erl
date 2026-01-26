@@ -92,47 +92,41 @@ init(Config) ->
     %% Validate model (warning only)
     validate_model(Model),
 
-    %% Find the Python script
-    ScriptPath = find_sparse_script(),
+    %% Build args for python -m barrel_embed
+    Args = ["-m", "barrel_embed",
+            "--provider", "splade",
+            "--model", Model],
 
-    case ScriptPath of
-        {ok, Script} ->
-            PortOpts = [
-                {args, [Script, Model]},
-                {line, 10000000},
-                binary,
-                use_stdio,
-                exit_status
-            ],
-            try
-                Port = open_port({spawn_executable, Python}, PortOpts),
-                case port_command_sync(Port, #{action => info}, Timeout) of
-                    {ok, #{<<"ok">> := true, <<"vocab_size">> := VocabSize}} ->
-                        NewConfig = Config#{
-                            port => Port,
-                            vocab_size => VocabSize,
-                            timeout => Timeout
-                        },
-                        {ok, NewConfig};
-                    {ok, #{<<"ok">> := false, <<"error">> := Err}} ->
-                        catch port_close(Port),
-                        {error, {python_error, Err}};
-                    {error, Reason} ->
-                        catch port_close(Port),
-                        {error, Reason}
-                end
-            catch
-                error:PortReason ->
-                    {error, {port_open_failed, PortReason}}
+    Opts = [{timeout, Timeout}, {priv_dir, get_priv_dir()}],
+
+    case barrel_embed_port_server:start_link(Python, Args, Opts) of
+        {ok, Server} ->
+            case barrel_embed_port_server:info(Server, Timeout) of
+                {ok, #{vocab_size := VocabSize}} ->
+                    {ok, Config#{
+                        server => Server,
+                        vocab_size => VocabSize,
+                        timeout => Timeout
+                    }};
+                {ok, _} ->
+                    %% No vocab_size in response, use default
+                    {ok, Config#{
+                        server => Server,
+                        vocab_size => ?DEFAULT_VOCAB_SIZE,
+                        timeout => Timeout
+                    }};
+                {error, Reason} ->
+                    barrel_embed_port_server:stop(Server),
+                    {error, Reason}
             end;
-        {error, ScriptError} ->
-            {error, ScriptError}
+        {error, Reason} ->
+            {error, Reason}
     end.
 
 %% @doc Check if provider is available.
 -spec available(map()) -> boolean().
-available(#{port := Port}) ->
-    erlang:port_info(Port) =/= undefined;
+available(#{server := Server}) ->
+    is_process_alive(Server);
 available(_Config) ->
     false.
 
@@ -173,71 +167,25 @@ embed_sparse(Text, Config) ->
 
 %% @doc Generate sparse embeddings for multiple texts.
 -spec embed_batch_sparse([binary()], map()) -> {ok, [sparse_vector()]} | {error, term()}.
-embed_batch_sparse(Texts, #{port := Port, timeout := Timeout}) ->
-    case barrel_embed_python_queue:acquire(Timeout) of
-        ok ->
-            try
-                Request = #{action => embed, texts => Texts},
-                case port_command_sync(Port, Request, Timeout) of
-                    {ok, #{<<"ok">> := true, <<"embeddings">> := Embeddings}} ->
-                        SparseVecs = [parse_sparse_vec(E) || E <- Embeddings],
-                        {ok, SparseVecs};
-                    {ok, #{<<"ok">> := false, <<"error">> := Err}} ->
-                        {error, {python_error, Err}};
-                    {error, Reason} ->
-                        {error, Reason}
-                end
-            after
-                barrel_embed_python_queue:release()
-            end;
-        {error, timeout} ->
-            {error, queue_timeout}
+embed_batch_sparse(Texts, #{server := Server, timeout := Timeout}) ->
+    case barrel_embed_port_server:embed_sparse_batch(Server, Texts, Timeout) of
+        {ok, Embeddings} ->
+            SparseVecs = [parse_sparse_vec(E) || E <- Embeddings],
+            {ok, SparseVecs};
+        {error, _} = Error ->
+            Error
     end;
 embed_batch_sparse(_Texts, _Config) ->
-    {error, port_not_initialized}.
+    {error, server_not_initialized}.
 
 %%====================================================================
 %% Internal Functions
 %%====================================================================
 
-%% @private
-find_sparse_script() ->
+get_priv_dir() ->
     case code:priv_dir(barrel_embed) of
-        {error, bad_name} ->
-            case filelib:is_file("priv/sparse_server.py") of
-                true -> {ok, "priv/sparse_server.py"};
-                false ->
-                    case filelib:is_file("../priv/sparse_server.py") of
-                        true -> {ok, "../priv/sparse_server.py"};
-                        false -> {error, script_not_found}
-                    end
-            end;
-        PrivDir ->
-            Script = filename:join(PrivDir, "sparse_server.py"),
-            case filelib:is_file(Script) of
-                true -> {ok, Script};
-                false -> {error, script_not_found}
-            end
-    end.
-
-%% @private
-port_command_sync(Port, Request, Timeout) ->
-    Json = iolist_to_binary(json:encode(Request)),
-    true = port_command(Port, [Json, "\n"]),
-
-    receive
-        {Port, {data, {eol, Line}}} ->
-            try
-                Response = json:decode(Line),
-                {ok, Response}
-            catch
-                _:Reason ->
-                    {error, {json_decode_failed, Reason}}
-            end;
-        {Port, {exit_status, Status}} ->
-            {error, {port_exited, Status}}
-    after Timeout ->
-        {error, timeout}
+        {error, bad_name} -> "priv";
+        Dir -> Dir
     end.
 
 %% @private
@@ -264,7 +212,9 @@ to_binary(S) when is_list(S) -> list_to_binary(S).
 
 %% @private
 parse_sparse_vec(#{<<"indices">> := Indices, <<"values">> := Values}) ->
-    #{indices => Indices, values => Values}.
+    #{indices => Indices, values => Values};
+parse_sparse_vec(#{indices := _, values := _} = Vec) ->
+    Vec.
 
 %% @private
 %% Convert sparse vector to dense (for compatibility with dense search)
