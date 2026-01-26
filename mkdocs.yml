@@ -49,4 +49,7 @@ nav:
     - ColBERT: providers/colbert.md
     - CLIP: providers/clip.md
   - API Reference: api.md
+  - Design: design.md
+  - Development:
+    - Adding a Provider: dev/adding-provider.md
   - Changelog: changelog.md

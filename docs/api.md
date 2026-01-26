@@ -221,6 +221,94 @@ Generate embeddings for multiple images.
 
 ---
 
+## barrel_embed_port_server
+
+Low-level gen_server for Python port communication with request multiplexing.
+
+This module manages the Erlang-Python communication for embedding providers that use local Python models. It handles concurrent requests efficiently by assigning unique IDs and routing responses to the correct callers.
+
+### start_link/3
+
+Start the port server with a Python executable.
+
+```erlang
+-spec start_link(Python :: string(), Args :: [string()], Opts :: proplists:proplist()) ->
+    {ok, pid()} | {error, term()}.
+```
+
+**Args** are passed to `python -m barrel_embed`.
+
+**Opts:**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `timeout` | `timeout()` | Default timeout in ms (default: 120000) |
+| `priv_dir` | `string()` | Path to priv directory |
+
+### embed_batch/3
+
+Generate embeddings for texts.
+
+```erlang
+-spec embed_batch(Server :: pid(), Texts :: [binary()], Timeout :: timeout()) ->
+    {ok, [[float()]]} | {error, term()}.
+```
+
+### embed_image_batch/3
+
+Generate embeddings for base64-encoded images.
+
+```erlang
+-spec embed_image_batch(Server :: pid(), Images :: [binary()], Timeout :: timeout()) ->
+    {ok, [[float()]]} | {error, term()}.
+```
+
+### embed_sparse_batch/3
+
+Generate sparse embeddings (for SPLADE-style providers).
+
+```erlang
+-spec embed_sparse_batch(Server :: pid(), Texts :: [binary()], Timeout :: timeout()) ->
+    {ok, [map()]} | {error, term()}.
+```
+
+Returns maps with `indices` and `values` keys.
+
+### embed_multi_batch/3
+
+Generate multi-vector embeddings (for ColBERT-style providers).
+
+```erlang
+-spec embed_multi_batch(Server :: pid(), Texts :: [binary()], Timeout :: timeout()) ->
+    {ok, [[[float()]]]} | {error, term()}.
+```
+
+### info/2
+
+Get model information.
+
+```erlang
+-spec info(Server :: pid(), Timeout :: timeout()) -> {ok, map()} | {error, term()}.
+```
+
+**Returns** a map containing:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `dimensions` | `integer()` | Embedding dimensions |
+| `model` | `binary()` | Model name |
+| `backend` | `binary()` | Backend type |
+
+### stop/1
+
+Stop the server and close the port.
+
+```erlang
+-spec stop(Server :: pid()) -> ok.
+```
+
+---
+
 ## barrel_embed_python_queue
 
 Python execution rate limiter.
