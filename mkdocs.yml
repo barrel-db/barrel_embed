@@ -41,13 +41,23 @@ nav:
   - Choosing a Provider: choosing-provider.md
   - Providers:
     - Overview: providers/index.md
-    - Ollama: providers/ollama.md
-    - OpenAI: providers/openai.md
-    - Local: providers/local.md
-    - FastEmbed: providers/fastembed.md
-    - SPLADE: providers/splade.md
-    - ColBERT: providers/colbert.md
-    - CLIP: providers/clip.md
+    - Cloud Providers:
+      - OpenAI: providers/openai.md
+      - Cohere: providers/cohere.md
+      - Voyage AI: providers/voyage.md
+      - Jina AI: providers/jina.md
+      - Mistral: providers/mistral.md
+      - Azure OpenAI: providers/azure.md
+      - AWS Bedrock: providers/bedrock.md
+      - Google Vertex AI: providers/vertex.md
+    - Local Providers:
+      - Ollama: providers/ollama.md
+      - Local: providers/local.md
+      - FastEmbed: providers/fastembed.md
+    - Specialized Providers:
+      - SPLADE: providers/splade.md
+      - ColBERT: providers/colbert.md
+      - CLIP: providers/clip.md
   - API Reference: api.md
   - Design: design.md
   - Development:

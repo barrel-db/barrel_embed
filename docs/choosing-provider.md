@@ -17,26 +17,51 @@ Need token-level matching?
   └─ Yes → ColBERT
   └─ No ↓
 
-Can use external API?
-  └─ Yes → OpenAI (best quality)
+Can use cloud API?
+  └─ No → Local (Ollama, Local, or FastEmbed)
+  └─ Yes ↓
+
+Need EU data residency?
+  └─ Yes → Mistral or Azure (EU region)
   └─ No ↓
 
-Have Ollama installed?
-  └─ Yes → Ollama (recommended)
+Need domain-specific models?
+  └─ Yes → Voyage (code, law, finance) or Bedrock (Cohere)
   └─ No ↓
 
-Need lightweight install?
-  └─ Yes → FastEmbed (~100MB)
-  └─ No → Local (~2GB with PyTorch)
+Need enterprise compliance?
+  └─ Yes → Azure, Bedrock, or Vertex
+  └─ No ↓
+
+Need best retrieval quality?
+  └─ Yes → Voyage or Cohere
+  └─ No → OpenAI (general purpose)
+
+Local only?
+  └─ Have Ollama → Ollama (recommended)
+  └─ Need lightweight → FastEmbed (~100MB)
+  └─ Need any HF model → Local (~2GB)
 ```
 
 ## Provider Comparison
 
-### Dense Embedding Providers
+### Cloud Providers
+
+| Provider | Quality | Best For | Dimensions | EU Residency |
+|----------|---------|----------|------------|--------------|
+| **OpenAI** | ★★★★★ | General purpose | 256-3072 | No |
+| **Cohere** | ★★★★★ | Input type optimization | 384-1024 | No |
+| **Voyage** | ★★★★★ | Retrieval, domain-specific | 512-1536 | No |
+| **Jina** | ★★★★☆ | Long context (8K), multilingual | 768-1024 | No |
+| **Mistral** | ★★★★☆ | EU data residency | 1024 | Yes |
+| **Azure** | ★★★★★ | Enterprise compliance | 1536-3072 | Yes (regional) |
+| **Bedrock** | ★★★★★ | AWS ecosystem | 1024-1536 | Yes (regional) |
+| **Vertex** | ★★★★☆ | GCP ecosystem | 768 | Yes (regional) |
+
+### Local Providers
 
 | Provider | Quality | Speed | Install Size | Dependencies | Offline |
 |----------|---------|-------|--------------|--------------|---------|
-| **OpenAI** | ★★★★★ | Fast | None | API key | No |
 | **Ollama** | ★★★★☆ | Fast | ~2GB (model) | Ollama server | Yes |
 | **Local** | ★★★★☆ | Medium | ~2GB | Python, PyTorch | Yes |
 | **FastEmbed** | ★★★★☆ | Fast | ~100MB | Python, ONNX | Yes |
@@ -71,6 +96,172 @@ Need lightweight install?
 - Data privacy is critical (data sent to API)
 - Need offline/air-gapped operation
 - High volume with tight budget
+
+---
+
+### Cohere
+
+**Best for:** Production with input type optimization
+
+```erlang
+{cohere, #{
+    model => <<"embed-english-v3.0">>,
+    input_type => <<"search_document">>  % or search_query
+}}
+```
+
+✅ **Use when:**
+
+- Need separate document vs query embeddings
+- Want classification/clustering optimization
+- Building production search systems
+- Need multilingual support
+
+❌ **Avoid when:**
+
+- Don't need input type distinction
+- Tight budget (comparable to OpenAI pricing)
+
+---
+
+### Voyage AI
+
+**Best for:** Best-in-class retrieval, domain-specific models
+
+```erlang
+{voyage, #{model => <<"voyage-3">>}}
+% Or domain-specific:
+{voyage, #{model => <<"voyage-code-3">>}}    % code search
+{voyage, #{model => <<"voyage-law-2">>}}     % legal
+{voyage, #{model => <<"voyage-finance-2">>}} % financial
+```
+
+✅ **Use when:**
+
+- Building RAG systems (top MTEB scores)
+- Need domain-specific models (code, law, finance)
+- Retrieval quality is critical
+
+❌ **Avoid when:**
+
+- Budget constrained
+- Don't need specialized retrieval
+
+---
+
+### Jina AI
+
+**Best for:** Long context, multilingual
+
+```erlang
+{jina, #{model => <<"jina-embeddings-v3">>}}
+```
+
+✅ **Use when:**
+
+- Processing long documents (8K context)
+- Need multilingual with free tier
+- Budget conscious (free 1M tokens/month)
+
+❌ **Avoid when:**
+
+- Need highest retrieval quality
+- Processing only short texts
+
+---
+
+### Mistral
+
+**Best for:** EU data residency
+
+```erlang
+{mistral, #{model => <<"mistral-embed">>}}
+```
+
+✅ **Use when:**
+
+- EU data residency required
+- GDPR compliance important
+- Already using Mistral for LLMs
+
+❌ **Avoid when:**
+
+- Don't need EU residency
+- Need domain-specific models
+
+---
+
+### Azure OpenAI
+
+**Best for:** Enterprise with Azure ecosystem
+
+```erlang
+{azure, #{
+    endpoint => <<"https://your-resource.openai.azure.com">>,
+    deployment => <<"text-embedding-ada-002">>
+}}
+```
+
+✅ **Use when:**
+
+- Need enterprise compliance (SOC 2, HIPAA)
+- Already in Azure ecosystem
+- Need VNet integration
+- Regional data residency required
+
+❌ **Avoid when:**
+
+- Don't need enterprise features
+- Simpler setup preferred
+
+---
+
+### AWS Bedrock
+
+**Best for:** AWS ecosystem integration
+
+```erlang
+{bedrock, #{
+    model => <<"amazon.titan-embed-text-v2:0">>,
+    region => <<"us-east-1">>
+}}
+```
+
+✅ **Use when:**
+
+- Already in AWS ecosystem
+- Need IAM/VPC integration
+- Want choice of models (Titan, Cohere)
+- Need enterprise compliance
+
+❌ **Avoid when:**
+
+- Don't use AWS
+- Need batch API (not supported)
+
+---
+
+### Google Vertex AI
+
+**Best for:** GCP ecosystem integration
+
+```erlang
+{vertex, #{
+    project => <<"my-project">>,
+    model => <<"text-embedding-004">>
+}}
+```
+
+✅ **Use when:**
+
+- Already in GCP ecosystem
+- Need BigQuery integration
+- Need VPC-SC, CMEK
+
+❌ **Avoid when:**
+
+- Don't use GCP
+- Access token refresh is problematic
 
 ---
 
@@ -262,7 +453,15 @@ Approximate performance on typical hardware (results vary):
 
 | Use Case | Recommended Provider |
 |----------|---------------------|
-| Production, best quality | OpenAI |
+| Production, general purpose | OpenAI |
+| Best retrieval quality | Voyage AI |
+| Domain-specific (code/law/finance) | Voyage AI |
+| Long context (8K tokens) | Jina AI |
+| EU data residency | Mistral |
+| Enterprise + Azure | Azure OpenAI |
+| Enterprise + AWS | AWS Bedrock |
+| Enterprise + GCP | Google Vertex AI |
+| Input type optimization | Cohere |
 | Local, simple setup | Ollama |
 | Local, any HF model | Local |
 | Local, lightweight | FastEmbed |

@@ -5,10 +5,22 @@
 %%% Manages a chain of embedding providers with automatic fallback.
 %%%
 %%% == Providers ==
+%%% Local:
 %%% - `local': Local Python with sentence-transformers (CPU, no external calls)
 %%% - `ollama': Local Ollama server
-%%% - `openai': OpenAI Embeddings API (requires API key)
 %%% - `fastembed': FastEmbed ONNX-based embeddings (lighter than sentence-transformers)
+%%%
+%%% Cloud:
+%%% - `openai': OpenAI Embeddings API
+%%% - `cohere': Cohere Embed API
+%%% - `voyage': Voyage AI Embeddings
+%%% - `jina': Jina AI Embeddings
+%%% - `mistral': Mistral AI Embeddings (EU data residency)
+%%% - `azure': Azure OpenAI Embeddings
+%%% - `bedrock': AWS Bedrock Embeddings (Titan, Cohere)
+%%% - `vertex': Google Vertex AI Embeddings
+%%%
+%%% Specialized:
 %%% - `splade': SPLADE sparse embeddings for hybrid search
 %%% - `colbert': ColBERT multi-vector embeddings for fine-grained matching
 %%% - `clip': CLIP image/text cross-modal embeddings
@@ -188,6 +200,14 @@ provider_module(fastembed) -> barrel_embed_fastembed;
 provider_module(splade) -> barrel_embed_splade;
 provider_module(colbert) -> barrel_embed_colbert;
 provider_module(clip) -> barrel_embed_clip;
+%% Cloud providers
+provider_module(cohere) -> barrel_embed_cohere;
+provider_module(voyage) -> barrel_embed_voyage;
+provider_module(jina) -> barrel_embed_jina;
+provider_module(mistral) -> barrel_embed_mistral;
+provider_module(azure) -> barrel_embed_azure;
+provider_module(bedrock) -> barrel_embed_bedrock;
+provider_module(vertex) -> barrel_embed_vertex;
 provider_module(Module) when is_atom(Module) -> Module.
 
 %% Initialize a provider
