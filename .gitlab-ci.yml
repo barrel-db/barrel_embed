@@ -10,6 +10,7 @@ erlang:test:
   stage: test
   image: erlang:27
   before_script:
+    - apt-get update && apt-get install -y cmake
     - wget https://s3.amazonaws.com/rebar3/rebar3 && chmod +x rebar3
   script:
     - ./rebar3 compile
@@ -38,6 +39,7 @@ erlang:dialyzer:
   stage: analyze
   image: erlang:27
   before_script:
+    - apt-get update && apt-get install -y cmake
     - wget https://s3.amazonaws.com/rebar3/rebar3 && chmod +x rebar3
   script:
     - ./rebar3 dialyzer
@@ -52,6 +54,7 @@ erlang:xref:
   stage: analyze
   image: erlang:27
   before_script:
+    - apt-get update && apt-get install -y cmake
     - wget https://s3.amazonaws.com/rebar3/rebar3 && chmod +x rebar3
   script:
     - ./rebar3 xref
