@@ -24,6 +24,14 @@ all = [
     "pillow>=9.0.0",
 ]
 uvloop = ["uvloop>=0.17.0"]
+test = ["pytest>=7.0.0", "pytest-asyncio>=0.21.0"]
+dev = ["pytest>=7.0.0", "pytest-asyncio>=0.21.0", "uvloop>=0.17.0"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
 
 [project.scripts]
 barrel-embed = "barrel_embed.__main__:main"

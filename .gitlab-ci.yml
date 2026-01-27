@@ -1,0 +1,61 @@
+stages:
+  - test
+  - analyze
+
+variables:
+  MIX_ENV: test
+
+# Erlang tests
+erlang:test:
+  stage: test
+  image: erlang:27
+  before_script:
+    - wget https://s3.amazonaws.com/rebar3/rebar3 && chmod +x rebar3
+  script:
+    - ./rebar3 compile
+    - ./rebar3 eunit
+  cache:
+    key: erlang-deps
+    paths:
+      - _build/
+
+# Python tests
+python:test:
+  stage: test
+  image: python:3.11
+  before_script:
+    - ./scripts/setup_python_venv.sh --minimal --dev
+  script:
+    - source .venv/bin/activate
+    - cd priv && pytest tests/ -v --tb=short
+  cache:
+    key: python-deps
+    paths:
+      - .venv/
+
+# Dialyzer type checking
+erlang:dialyzer:
+  stage: analyze
+  image: erlang:27
+  before_script:
+    - wget https://s3.amazonaws.com/rebar3/rebar3 && chmod +x rebar3
+  script:
+    - ./rebar3 dialyzer
+  cache:
+    key: erlang-plt
+    paths:
+      - _build/
+  allow_failure: true
+
+# Xref cross-reference checks
+erlang:xref:
+  stage: analyze
+  image: erlang:27
+  before_script:
+    - wget https://s3.amazonaws.com/rebar3/rebar3 && chmod +x rebar3
+  script:
+    - ./rebar3 xref
+  cache:
+    key: erlang-deps
+    paths:
+      - _build/

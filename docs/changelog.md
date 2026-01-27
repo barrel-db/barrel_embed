@@ -28,6 +28,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Tooling
 
 - `scripts/setup_python_venv.sh` for one-command Python venv setup
+  - Added `--dev` option for installing dev dependencies (test + uvloop)
+  - Added `--uvloop` option to install uvloop via pyproject.toml extra
+  - Added `--test` option to run Python tests after setup
+  - Added `-h/--help` option for usage information
+- GitLab CI configuration (`.gitlab-ci.yml`)
+  - Erlang tests with rebar3 eunit
+  - Python tests with pytest
+  - Dialyzer type checking
+  - Xref cross-reference checks
+
+#### Testing
+
+- Python test suite for uvloop integration (`priv/tests/test_server.py`)
+  - uvloop detection and event loop policy tests
+  - AsyncEmbedServer dispatch and handler tests
+  - Concurrent task execution tests
 
 #### Python Engine
 

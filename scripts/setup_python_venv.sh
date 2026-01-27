@@ -11,6 +11,9 @@
 #   --minimal    Install only sentence-transformers (default)
 #   --all        Install all providers (torch, transformers, pillow, fastembed)
 #   --provider X Install specific provider (sentence-transformers, fastembed, splade, colbert, clip)
+#   --dev        Install dev dependencies (test + uvloop)
+#   --test       Run Python tests after setup
+#   --uvloop     Install uvloop for better async performance
 #
 # The venv is automatically detected by the embedding providers.
 
@@ -20,6 +23,9 @@ VENV_DIR=".venv"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 INSTALL_MODE="minimal"
+INSTALL_DEV=false
+INSTALL_UVLOOP=false
+RUN_TESTS=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -37,8 +43,34 @@ while [[ $# -gt 0 ]]; do
             PROVIDER="$2"
             shift 2
             ;;
+        --dev)
+            INSTALL_DEV=true
+            shift
+            ;;
+        --test)
+            RUN_TESTS=true
+            shift
+            ;;
+        --uvloop)
+            INSTALL_UVLOOP=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --minimal    Install only sentence-transformers (default)"
+            echo "  --all        Install all providers"
+            echo "  --provider X Install specific provider"
+            echo "  --dev        Install dev dependencies (test + uvloop)"
+            echo "  --uvloop     Install uvloop for better async performance"
+            echo "  --test       Run Python tests after setup"
+            echo "  -h, --help   Show this help message"
+            exit 0
+            ;;
         *)
             echo "Unknown option: $1"
+            echo "Use --help for usage information"
             exit 1
             ;;
     esac
@@ -74,8 +106,14 @@ case $INSTALL_MODE in
         ;;
 esac
 
-# Optional: uvloop for better async performance
-pip install uvloop 2>/dev/null || echo "Note: uvloop not available (optional, improves async performance)"
+# Install dev dependencies if requested
+if [ "$INSTALL_DEV" = true ]; then
+    echo "Installing dev dependencies (test + uvloop)..."
+    pip install -e "$PROJECT_DIR/priv[dev]"
+elif [ "$INSTALL_UVLOOP" = true ]; then
+    echo "Installing uvloop..."
+    pip install -e "$PROJECT_DIR/priv[uvloop]" 2>/dev/null || echo "Note: uvloop not available on this platform"
+fi
 
 echo ""
 echo "=========================================="
@@ -93,3 +131,16 @@ echo "  rebar3 shell"
 echo "  {ok, S} = barrel_embed:init(#{embedder => {local, #{}}})."
 echo "  barrel_embed:embed(<<\"hello world\">>, S)."
 echo ""
+echo "To run Python tests:"
+echo "  cd priv && pytest tests/ -v"
+echo ""
+
+# Run tests if requested
+if [ "$RUN_TESTS" = true ]; then
+    echo "Running Python tests..."
+    echo ""
+    cd "$PROJECT_DIR/priv"
+    # Install test dependencies if not already installed
+    pip install -e ".[test]" -q
+    pytest tests/ -v
+fi
