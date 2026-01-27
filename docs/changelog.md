@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-01-27
 
 ### Added
 
@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated hackney dependency to 2.0.1 for HTTP/2 support
 - Provider init now properly loads modules before checking exports
+- Removed redundant `application:ensure_all_started(hackney)` from providers (hackney starts via app.src)
 
 ## [0.1.0] - 2026-01-14
 
@@ -56,4 +57,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Application supervision tree with ETS-based rate limiting
 - Comprehensive EUnit test suite
 
+[0.2.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v0.2.0
 [0.1.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v0.1.0

@@ -1,6 +1,6 @@
 {application, barrel_embed,
  [{description, "Lightweight embedding generation for Erlang"},
-  {vsn, "0.1.0"},
+  {vsn, "0.2.0"},
   {registered, []},
   {mod, {barrel_embed_app, []}},
   {applications,
