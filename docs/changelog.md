@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `bedrock` - AWS Bedrock (Titan, Cohere models) with IAM and API key auth
 - `vertex` - Google Vertex AI for GCP ecosystem
 
+#### Documentation
+
+- Provider comparison guide (`docs/choosing-provider.md`)
+- Developer guide for adding cloud providers (`docs/dev/adding-provider.md`)
+- Individual documentation pages for all cloud providers
+
+#### Python Engine
+
+- Async request multiplexing for concurrent embeddings
+- Improved error handling and logging
+
 ### Changed
 
 - Updated hackney dependency to 2.0.1 for HTTP/2 support
