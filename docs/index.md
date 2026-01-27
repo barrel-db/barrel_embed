@@ -32,12 +32,31 @@ A standalone library for generating text and image embeddings with multiple prov
 
 ## Provider Overview
 
+### Cloud Providers
+
+| Provider | Dimensions | Best For |
+|----------|------------|----------|
+| [OpenAI](providers/openai.md) | 256-3072 | Production, general purpose |
+| [Cohere](providers/cohere.md) | 384-1024 | Input type optimization |
+| [Voyage AI](providers/voyage.md) | 512-1536 | RAG, domain-specific (code, law, finance) |
+| [Jina AI](providers/jina.md) | 768-1024 | Long context (8K), free tier |
+| [Mistral](providers/mistral.md) | 1024 | EU data residency |
+| [Azure OpenAI](providers/azure.md) | 1536-3072 | Enterprise, Azure ecosystem |
+| [AWS Bedrock](providers/bedrock.md) | 1024-1536 | Enterprise, AWS ecosystem |
+| [Google Vertex AI](providers/vertex.md) | 768 | Enterprise, GCP ecosystem |
+
+### Local Providers
+
 | Provider | Type | Best For |
 |----------|------|----------|
 | [Ollama](providers/ollama.md) | Dense | Local deployment, no Python needed |
-| [OpenAI](providers/openai.md) | Dense | Production, high quality |
 | [Local](providers/local.md) | Dense | Offline, full control |
 | [FastEmbed](providers/fastembed.md) | Dense | Lightweight local inference |
+
+### Specialized Providers
+
+| Provider | Type | Best For |
+|----------|------|----------|
 | [SPLADE](providers/splade.md) | Sparse | Hybrid search, keyword expansion |
 | [ColBERT](providers/colbert.md) | Multi-vector | Fine-grained semantic matching |
 | [CLIP](providers/clip.md) | Cross-modal | Image-text search |

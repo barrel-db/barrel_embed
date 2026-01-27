@@ -128,6 +128,7 @@ Bedrock is available in these regions:
 
 - `us-east-1` (N. Virginia) - Most models
 - `us-west-2` (Oregon)
+- `eu-central-1` (Frankfurt)
 - `eu-west-1` (Ireland)
 - `ap-northeast-1` (Tokyo)
 

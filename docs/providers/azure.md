@@ -14,11 +14,15 @@ Embedding generation using Azure OpenAI's Embeddings API. Provides enterprise-gr
 {ok, State} = barrel_embed:init(#{
     embedder => {azure, #{
         api_key => <<"...">>,                              % or use env var
-        endpoint => <<"https://your-resource.openai.azure.com">>,
-        deployment => <<"text-embedding-ada-002">>         % your deployment name
+        endpoint => <<"https://your-resource.cognitiveservices.azure.com">>,
+        deployment => <<"text-embedding-3-small">>         % your deployment name
     }}
 }).
 ```
+
+!!! note "Endpoint Format"
+    Your endpoint may use either `*.openai.azure.com` or `*.cognitiveservices.azure.com`
+    depending on your Azure configuration. Check Azure Portal for the exact URL.
 
 ### Options
 
@@ -35,13 +39,13 @@ Set environment variables instead of passing in config:
 
 ```bash
 export AZURE_OPENAI_API_KEY=your-api-key
-export AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+export AZURE_OPENAI_ENDPOINT=https://your-resource.cognitiveservices.azure.com
 ```
 
 ```erlang
 {ok, State} = barrel_embed:init(#{
     embedder => {azure, #{
-        deployment => <<"text-embedding-ada-002">>
+        deployment => <<"text-embedding-3-small">>
     }}
 }).
 ```
@@ -80,8 +84,8 @@ Deploy these models in Azure OpenAI Studio:
 {ok, State} = barrel_embed:init(#{
     embedder => {azure, #{
         api_key => <<"your-api-key">>,
-        endpoint => <<"https://your-resource.openai.azure.com">>,
-        deployment => <<"text-embedding-ada-002">>,
+        endpoint => <<"https://your-resource.cognitiveservices.azure.com">>,
+        deployment => <<"text-embedding-3-small">>,
         api_version => <<"2024-02-01">>
     }}
 }).

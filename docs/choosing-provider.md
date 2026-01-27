@@ -197,8 +197,8 @@ Local only?
 
 ```erlang
 {azure, #{
-    endpoint => <<"https://your-resource.openai.azure.com">>,
-    deployment => <<"text-embedding-ada-002">>
+    endpoint => <<"https://your-resource.cognitiveservices.azure.com">>,
+    deployment => <<"text-embedding-3-small">>
 }}
 ```
 

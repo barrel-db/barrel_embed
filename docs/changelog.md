@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### Cloud Providers
+
+- `cohere` - Cohere Embed API with input type optimization
+- `voyage` - Voyage AI for RAG and domain-specific embeddings (code, law, finance)
+- `jina` - Jina AI with 8K context and free tier
+- `mistral` - Mistral AI with EU data residency
+- `azure` - Azure OpenAI for enterprise compliance
+- `bedrock` - AWS Bedrock (Titan, Cohere models) with IAM and API key auth
+- `vertex` - Google Vertex AI for GCP ecosystem
+
+### Changed
+
+- Updated hackney dependency to 2.0.1 for HTTP/2 support
+- Provider init now properly loads modules before checking exports
+
 ## [0.1.0] - 2026-01-14
 
 ### Added
