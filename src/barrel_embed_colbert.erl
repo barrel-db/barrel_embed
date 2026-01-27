@@ -12,11 +12,15 @@
 %%% == Configuration ==
 %%% ```
 %%% Config = #{
-%%%     python => "python3",                   %% Python executable (default)
+%%%     venv => "/path/to/.venv",              %% Virtualenv path (recommended)
+%%%     python => "python3",                   %% Python executable (if no venv)
 %%%     model => "colbert-ir/colbertv2.0",     %% Model name (default, 128 dims)
 %%%     timeout => 120000                      %% Timeout in ms (default)
 %%% }.
 %%% '''
+%%%
+%%% When `venv' is specified, the provider uses the venv's Python executable
+%%% and properly activates the venv environment.
 %%%
 %%% == Multi-Vector Format ==
 %%% Unlike single-vector embeddings, ColBERT produces a list of vectors:
@@ -92,6 +96,7 @@ init(Config) ->
     Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
+    Venv = maps:get(venv, Config, undefined),
 
     %% Validate model (warning only)
     validate_model(Model),
@@ -101,7 +106,11 @@ init(Config) ->
             "--provider", "colbert",
             "--model", Model],
 
-    Opts = [{timeout, Timeout}, {priv_dir, get_priv_dir()}],
+    Opts = [
+        {timeout, Timeout},
+        {priv_dir, get_priv_dir()},
+        {venv, Venv}
+    ],
 
     case barrel_embed_port_server:start_link(Python, Args, Opts) of
         {ok, Server} ->

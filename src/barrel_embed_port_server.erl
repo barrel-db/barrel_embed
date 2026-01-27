@@ -98,9 +98,13 @@ stop(Server) ->
 init({Python, Args, Opts}) ->
     Timeout = proplists:get_value(timeout, Opts, 120000),
     PrivDir = proplists:get_value(priv_dir, Opts, get_priv_dir()),
+    Venv = proplists:get_value(venv, Opts, undefined),
 
-    %% Set PYTHONPATH to include priv directory
-    Env = [{"PYTHONPATH", PrivDir}],
+    %% Build environment - activate venv if specified
+    Env = build_env(PrivDir, Venv),
+
+    %% Get Python executable - use venv's python if specified
+    PythonExe = get_python_exe(Python, Venv),
 
     PortOpts = [
         {args, Args},
@@ -112,7 +116,7 @@ init({Python, Args, Opts}) ->
     ],
 
     try
-        Port = open_port({spawn_executable, Python}, PortOpts),
+        Port = open_port({spawn_executable, PythonExe}, PortOpts),
         {ok, #state{port = Port, timeout = Timeout}}
     catch
         error:Reason ->
@@ -216,4 +220,36 @@ get_priv_dir() ->
     case code:priv_dir(barrel_embed) of
         {error, bad_name} -> "priv";
         Dir -> Dir
+    end.
+
+%% @private
+%% Build environment variables for port.
+%% When venv is specified, set up environment to activate it.
+build_env(PrivDir, undefined) ->
+    [{"PYTHONPATH", PrivDir}];
+build_env(PrivDir, Venv) ->
+    VenvBin = venv_bin_dir(Venv),
+    CurrentPath = os:getenv("PATH", ""),
+    [
+        {"VIRTUAL_ENV", Venv},
+        {"PATH", VenvBin ++ ":" ++ CurrentPath},
+        {"PYTHONPATH", PrivDir}
+        %% Note: PYTHONHOME must NOT be set for venv to work
+    ].
+
+%% @private
+%% Get Python executable path.
+%% When venv is specified, use the venv's python.
+get_python_exe(Python, undefined) ->
+    Python;
+get_python_exe(_Python, Venv) ->
+    %% When venv specified, always use its python
+    filename:join(venv_bin_dir(Venv), "python").
+
+%% @private
+%% Get the bin directory path for a venv (cross-platform).
+venv_bin_dir(Venv) ->
+    case os:type() of
+        {win32, _} -> filename:join(Venv, "Scripts");
+        _ -> filename:join(Venv, "bin")
     end.

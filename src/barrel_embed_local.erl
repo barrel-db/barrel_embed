@@ -12,11 +12,16 @@
 %%% == Configuration ==
 %%% ```
 %%% Config = #{
-%%%     python => "python3",                     %% Python executable (default)
+%%%     venv => "/path/to/.venv",                %% Virtualenv path (recommended)
+%%%     python => "python3",                     %% Python executable (if no venv)
 %%%     model => "BAAI/bge-base-en-v1.5",        %% Model name (default, 768 dims)
 %%%     timeout => 120000                        %% Timeout in ms (default)
 %%% }.
 %%% '''
+%%%
+%%% When `venv' is specified, the provider uses the venv's Python executable
+%%% and properly activates the venv environment. This is the recommended way
+%%% to use barrel_embed.
 %%%
 %%% == Supported Models ==
 %%% Any model from sentence-transformers or HuggingFace.
@@ -69,13 +74,18 @@ init(Config) ->
     Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
+    Venv = maps:get(venv, Config, undefined),
 
     %% Build args for python -m barrel_embed
     Args = ["-m", "barrel_embed",
             "--provider", "sentence_transformers",
             "--model", Model],
 
-    Opts = [{timeout, Timeout}, {priv_dir, get_priv_dir()}],
+    Opts = [
+        {timeout, Timeout},
+        {priv_dir, get_priv_dir()},
+        {venv, Venv}
+    ],
 
     case barrel_embed_port_server:start_link(Python, Args, Opts) of
         {ok, Server} ->
