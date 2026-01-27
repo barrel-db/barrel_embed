@@ -1,6 +1,227 @@
-# Adding a Python Provider
+# Adding a Provider
 
 This guide explains how to add a new embedding provider to barrel_embed.
+
+## Provider Types
+
+- **Cloud providers** - Use HTTP APIs (OpenAI, Cohere, etc.)
+- **Local providers** - Use Python subprocess (sentence-transformers, SPLADE, etc.)
+
+---
+
+# Adding a Cloud Provider
+
+Cloud providers are simpler - they make HTTP requests to external APIs.
+
+## Step 1: Create Erlang Module
+
+Create `src/barrel_embed_myprovider.erl`:
+
+```erlang
+-module(barrel_embed_myprovider).
+-behaviour(barrel_embed_provider).
+
+-export([embed/2, embed_batch/2, dimension/1, name/0, init/1, available/1]).
+
+-define(DEFAULT_URL, <<"https://api.myprovider.com/v1">>).
+-define(DEFAULT_MODEL, <<"embed-model">>).
+-define(DEFAULT_TIMEOUT, 30000).
+-define(DEFAULT_DIMENSION, 1024).
+
+name() -> myprovider.
+
+dimension(Config) ->
+    maps:get(dimension, Config, ?DEFAULT_DIMENSION).
+
+init(Config) ->
+    case application:ensure_all_started(hackney) of
+        {ok, _} ->
+            case get_api_key(Config) of
+                undefined ->
+                    {error, api_key_not_configured};
+                ApiKey ->
+                    {ok, maps:merge(#{
+                        url => ?DEFAULT_URL,
+                        model => ?DEFAULT_MODEL,
+                        timeout => ?DEFAULT_TIMEOUT,
+                        dimension => ?DEFAULT_DIMENSION
+                    }, Config#{api_key => ApiKey})}
+            end;
+        {error, Reason} ->
+            {error, {hackney_start_failed, Reason}}
+    end.
+
+available(Config) ->
+    maps:get(api_key, Config, undefined) =/= undefined.
+
+embed(Text, Config) ->
+    case embed_batch([Text], Config) of
+        {ok, [Vector]} -> {ok, Vector};
+        {error, _} = E -> E
+    end.
+
+embed_batch(Texts, Config) ->
+    Url = maps:get(url, Config),
+    ApiKey = maps:get(api_key, Config),
+    Model = maps:get(model, Config),
+    Timeout = maps:get(timeout, Config),
+
+    ApiUrl = <<Url/binary, "/embeddings">>,
+    Body = json:encode(#{
+        <<"input">> => Texts,
+        <<"model">> => Model
+    }),
+    Headers = [
+        {<<"Authorization">>, <<"Bearer ", ApiKey/binary>>},
+        {<<"Content-Type">>, <<"application/json">>}
+    ],
+
+    case hackney:request(post, ApiUrl, Headers, Body,
+                         [{recv_timeout, Timeout}, {with_body, true}]) of
+        {ok, 200, _RespHeaders, RespBody} ->
+            parse_response(RespBody);
+        {ok, StatusCode, _RespHeaders, RespBody} ->
+            {error, {http_error, StatusCode, RespBody}};
+        {error, Reason} ->
+            {error, {request_failed, Reason}}
+    end.
+
+%% Internal functions
+get_api_key(Config) ->
+    case maps:get(api_key, Config, undefined) of
+        undefined ->
+            case os:getenv("MYPROVIDER_API_KEY") of
+                false -> undefined;
+                Key -> list_to_binary(Key)
+            end;
+        Key when is_binary(Key) -> Key;
+        Key when is_list(Key) -> list_to_binary(Key)
+    end.
+
+parse_response(Body) ->
+    Response = json:decode(Body),
+    case maps:find(<<"data">>, Response) of
+        {ok, Data} ->
+            Sorted = lists:sort(
+                fun(A, B) ->
+                    maps:get(<<"index">>, A, 0) < maps:get(<<"index">>, B, 0)
+                end, Data),
+            {ok, [maps:get(<<"embedding">>, Item) || Item <- Sorted]};
+        _ ->
+            {error, {invalid_response, no_data_field}}
+    end.
+```
+
+## Step 2: Register Provider
+
+In `src/barrel_embed.erl`, add to `provider_module/1`:
+
+```erlang
+provider_module(myprovider) -> barrel_embed_myprovider;
+```
+
+## Step 3: Test
+
+```erlang
+rebar3 compile
+rebar3 shell
+
+{ok, S} = barrel_embed:init(#{embedder => {myprovider, #{}}}).
+barrel_embed:embed(<<"test">>, S).
+```
+
+## Authentication Patterns
+
+Different APIs use different auth headers:
+
+| Style | Header | Example Providers |
+|-------|--------|-------------------|
+| Bearer token | `Authorization: Bearer <key>` | OpenAI, Cohere, Voyage, Jina, Mistral |
+| API key header | `api-key: <key>` | Azure OpenAI |
+| Custom header | `x-goog-api-key: <key>` | Google Vertex AI |
+
+```erlang
+%% Bearer token (most common)
+{<<"Authorization">>, <<"Bearer ", ApiKey/binary>>}
+
+%% Azure style
+{<<"api-key">>, ApiKey}
+
+%% Google style
+{<<"x-goog-api-key">>, ApiKey}
+```
+
+## Response Formats
+
+### OpenAI-compatible (most providers)
+
+```json
+{"data": [{"embedding": [...], "index": 0}, {"embedding": [...], "index": 1}]}
+```
+
+```erlang
+parse_response(Body) ->
+    Response = json:decode(Body),
+    case maps:find(<<"data">>, Response) of
+        {ok, Data} ->
+            Sorted = lists:sort(
+                fun(A, B) ->
+                    maps:get(<<"index">>, A, 0) < maps:get(<<"index">>, B, 0)
+                end, Data),
+            {ok, [maps:get(<<"embedding">>, Item) || Item <- Sorted]};
+        _ ->
+            {error, {invalid_response, no_data_field}}
+    end.
+```
+
+### Cohere-style
+
+```json
+{"embeddings": [[...], [...]]}
+```
+
+```erlang
+parse_response(Body) ->
+    Response = json:decode(Body),
+    case maps:find(<<"embeddings">>, Response) of
+        {ok, Embeddings} -> {ok, Embeddings};
+        _ -> {error, {invalid_response, no_embeddings_field}}
+    end.
+```
+
+### Vertex AI-style
+
+```json
+{"predictions": [{"embeddings": {"values": [...]}}]}
+```
+
+```erlang
+parse_response(Body) ->
+    Response = json:decode(Body),
+    case maps:find(<<"predictions">>, Response) of
+        {ok, Predictions} ->
+            Embeddings = lists:map(
+                fun(Pred) ->
+                    EmbedObj = maps:get(<<"embeddings">>, Pred),
+                    maps:get(<<"values">>, EmbedObj)
+                end, Predictions),
+            {ok, Embeddings};
+        _ ->
+            {error, {invalid_response, no_predictions_field}}
+    end.
+```
+
+## AWS SigV4 Signing (Bedrock)
+
+For AWS Bedrock, you need AWS Signature Version 4. See `barrel_embed_bedrock.erl` for a complete implementation including:
+
+- `sign_request/11` - Create SigV4 signature
+- `canonical_headers/1` - Format headers for signing
+- `hmac_sha256/2` - HMAC-SHA256 helper
+
+---
+
+# Adding a Python Provider
 
 ## Overview
 
