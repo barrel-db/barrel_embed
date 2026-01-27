@@ -59,23 +59,17 @@ dimension(Config) ->
 %% @doc Initialize the provider.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
-    case application:ensure_all_started(hackney) of
-        {ok, _} ->
-            ApiKey = get_api_key(Config),
-            case ApiKey of
-                undefined ->
-                    {error, api_key_not_configured};
-                _ ->
-                    NewConfig = maps:merge(#{
-                        url => ?DEFAULT_URL,
-                        model => ?DEFAULT_MODEL,
-                        timeout => ?DEFAULT_TIMEOUT,
-                        dimension => ?DEFAULT_DIMENSION
-                    }, Config#{api_key => ApiKey}),
-                    {ok, NewConfig}
-            end;
-        {error, Reason} ->
-            {error, {hackney_start_failed, Reason}}
+    case get_api_key(Config) of
+        undefined ->
+            {error, api_key_not_configured};
+        ApiKey ->
+            NewConfig = maps:merge(#{
+                url => ?DEFAULT_URL,
+                model => ?DEFAULT_MODEL,
+                timeout => ?DEFAULT_TIMEOUT,
+                dimension => ?DEFAULT_DIMENSION
+            }, Config#{api_key => ApiKey}),
+            {ok, NewConfig}
     end.
 
 %% @doc Check if Mistral API is available.

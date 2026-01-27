@@ -61,34 +61,29 @@ dimension(Config) ->
 %% @doc Initialize the provider.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
-    case application:ensure_all_started(hackney) of
-        {ok, _} ->
-            %% Get API key from config or environment
-            ApiKey = case maps:get(api_key, Config, undefined) of
-                undefined ->
-                    case os:getenv("OPENAI_API_KEY") of
-                        false -> undefined;
-                        Key -> list_to_binary(Key)
-                    end;
-                Key when is_binary(Key) ->
-                    Key;
-                Key when is_list(Key) ->
-                    list_to_binary(Key)
-            end,
-            case ApiKey of
-                undefined ->
-                    {error, api_key_not_configured};
-                _ ->
-                    NewConfig = maps:merge(#{
-                        url => ?DEFAULT_URL,
-                        model => ?DEFAULT_MODEL,
-                        timeout => ?DEFAULT_TIMEOUT,
-                        dimension => ?DEFAULT_DIMENSION
-                    }, Config#{api_key => ApiKey}),
-                    {ok, NewConfig}
+    %% Get API key from config or environment
+    ApiKey = case maps:get(api_key, Config, undefined) of
+        undefined ->
+            case os:getenv("OPENAI_API_KEY") of
+                false -> undefined;
+                Key -> list_to_binary(Key)
             end;
-        {error, Reason} ->
-            {error, {hackney_start_failed, Reason}}
+        Key when is_binary(Key) ->
+            Key;
+        Key when is_list(Key) ->
+            list_to_binary(Key)
+    end,
+    case ApiKey of
+        undefined ->
+            {error, api_key_not_configured};
+        _ ->
+            NewConfig = maps:merge(#{
+                url => ?DEFAULT_URL,
+                model => ?DEFAULT_MODEL,
+                timeout => ?DEFAULT_TIMEOUT,
+                dimension => ?DEFAULT_DIMENSION
+            }, Config#{api_key => ApiKey}),
+            {ok, NewConfig}
     end.
 
 %% @doc Check if OpenAI API is available.

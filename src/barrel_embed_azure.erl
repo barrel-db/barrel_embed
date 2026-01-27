@@ -65,32 +65,27 @@ dimension(Config) ->
 %% @doc Initialize the provider.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
-    case application:ensure_all_started(hackney) of
-        {ok, _} ->
-            ApiKey = get_api_key(Config),
-            Endpoint = get_endpoint(Config),
-            Deployment = maps:get(deployment, Config, undefined),
-            case {ApiKey, Endpoint, Deployment} of
-                {undefined, _, _} ->
-                    {error, api_key_not_configured};
-                {_, undefined, _} ->
-                    {error, endpoint_not_configured};
-                {_, _, undefined} ->
-                    {error, deployment_not_configured};
-                _ ->
-                    NewConfig = maps:merge(#{
-                        api_version => ?DEFAULT_API_VERSION,
-                        timeout => ?DEFAULT_TIMEOUT,
-                        dimension => ?DEFAULT_DIMENSION
-                    }, Config#{
-                        api_key => ApiKey,
-                        endpoint => normalize_endpoint(Endpoint),
-                        deployment => Deployment
-                    }),
-                    {ok, NewConfig}
-            end;
-        {error, Reason} ->
-            {error, {hackney_start_failed, Reason}}
+    ApiKey = get_api_key(Config),
+    Endpoint = get_endpoint(Config),
+    Deployment = maps:get(deployment, Config, undefined),
+    case {ApiKey, Endpoint, Deployment} of
+        {undefined, _, _} ->
+            {error, api_key_not_configured};
+        {_, undefined, _} ->
+            {error, endpoint_not_configured};
+        {_, _, undefined} ->
+            {error, deployment_not_configured};
+        _ ->
+            NewConfig = maps:merge(#{
+                api_version => ?DEFAULT_API_VERSION,
+                timeout => ?DEFAULT_TIMEOUT,
+                dimension => ?DEFAULT_DIMENSION
+            }, Config#{
+                api_key => ApiKey,
+                endpoint => normalize_endpoint(Endpoint),
+                deployment => Deployment
+            }),
+            {ok, NewConfig}
     end.
 
 %% @doc Check if Azure OpenAI API is available.

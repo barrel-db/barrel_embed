@@ -81,24 +81,19 @@ dimension(Config) ->
 %% @doc Initialize the provider.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
-    case application:ensure_all_started(hackney) of
-        {ok, _} ->
-            case get_credentials(Config) of
-                {error, _} = Error ->
-                    Error;
-                Creds ->
-                    Model = maps:get(model, Config, ?DEFAULT_MODEL),
-                    Dim = dimension_for_model(Model),
-                    NewConfig = maps:merge(#{
-                        region => ?DEFAULT_REGION,
-                        model => Model,
-                        timeout => ?DEFAULT_TIMEOUT,
-                        dimension => Dim
-                    }, maps:merge(Config, Creds)),
-                    {ok, NewConfig}
-            end;
-        {error, Reason} ->
-            {error, {hackney_start_failed, Reason}}
+    case get_credentials(Config) of
+        {error, _} = Error ->
+            Error;
+        Creds ->
+            Model = maps:get(model, Config, ?DEFAULT_MODEL),
+            Dim = dimension_for_model(Model),
+            NewConfig = maps:merge(#{
+                region => ?DEFAULT_REGION,
+                model => Model,
+                timeout => ?DEFAULT_TIMEOUT,
+                dimension => Dim
+            }, maps:merge(Config, Creds)),
+            {ok, NewConfig}
     end.
 
 %% @doc Check if Bedrock API is available.

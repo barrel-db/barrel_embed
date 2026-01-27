@@ -64,18 +64,13 @@ dimension(Config) ->
 %% @doc Initialize the provider.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
-    case application:ensure_all_started(hackney) of
-        {ok, _} ->
-            NewConfig = maps:merge(#{
-                url => ?DEFAULT_URL,
-                model => ?DEFAULT_MODEL,
-                timeout => ?DEFAULT_TIMEOUT,
-                dimension => ?DEFAULT_DIMENSION
-            }, Config),
-            {ok, NewConfig};
-        {error, Reason} ->
-            {error, {hackney_start_failed, Reason}}
-    end.
+    NewConfig = maps:merge(#{
+        url => ?DEFAULT_URL,
+        model => ?DEFAULT_MODEL,
+        timeout => ?DEFAULT_TIMEOUT,
+        dimension => ?DEFAULT_DIMENSION
+    }, Config),
+    {ok, NewConfig}.
 
 %% @doc Check if Ollama is available.
 -spec available(map()) -> boolean().

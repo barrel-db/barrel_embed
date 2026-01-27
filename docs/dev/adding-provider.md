@@ -34,21 +34,16 @@ dimension(Config) ->
     maps:get(dimension, Config, ?DEFAULT_DIMENSION).
 
 init(Config) ->
-    case application:ensure_all_started(hackney) of
-        {ok, _} ->
-            case get_api_key(Config) of
-                undefined ->
-                    {error, api_key_not_configured};
-                ApiKey ->
-                    {ok, maps:merge(#{
-                        url => ?DEFAULT_URL,
-                        model => ?DEFAULT_MODEL,
-                        timeout => ?DEFAULT_TIMEOUT,
-                        dimension => ?DEFAULT_DIMENSION
-                    }, Config#{api_key => ApiKey})}
-            end;
-        {error, Reason} ->
-            {error, {hackney_start_failed, Reason}}
+    case get_api_key(Config) of
+        undefined ->
+            {error, api_key_not_configured};
+        ApiKey ->
+            {ok, maps:merge(#{
+                url => ?DEFAULT_URL,
+                model => ?DEFAULT_MODEL,
+                timeout => ?DEFAULT_TIMEOUT,
+                dimension => ?DEFAULT_DIMENSION
+            }, Config#{api_key => ApiKey})}
     end.
 
 available(Config) ->

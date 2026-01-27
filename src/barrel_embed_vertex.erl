@@ -74,29 +74,24 @@ dimension(Config) ->
 %% @doc Initialize the provider.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
-    case application:ensure_all_started(hackney) of
-        {ok, _} ->
-            Project = get_project(Config),
-            AuthInfo = get_auth(Config),
-            case {Project, AuthInfo} of
-                {undefined, _} ->
-                    {error, project_not_configured};
-                {_, {error, _} = E} ->
-                    E;
-                {_, Auth} ->
-                    Model = maps:get(model, Config, ?DEFAULT_MODEL),
-                    BaseConfig = maps:merge(Config, #{project => Project}),
-                    ConfigWithAuth = maps:merge(BaseConfig, Auth),
-                    NewConfig = maps:merge(#{
-                        region => ?DEFAULT_REGION,
-                        model => Model,
-                        timeout => ?DEFAULT_TIMEOUT,
-                        dimension => ?DEFAULT_DIMENSION
-                    }, ConfigWithAuth),
-                    {ok, NewConfig}
-            end;
-        {error, Reason} ->
-            {error, {hackney_start_failed, Reason}}
+    Project = get_project(Config),
+    AuthInfo = get_auth(Config),
+    case {Project, AuthInfo} of
+        {undefined, _} ->
+            {error, project_not_configured};
+        {_, {error, _} = E} ->
+            E;
+        {_, Auth} ->
+            Model = maps:get(model, Config, ?DEFAULT_MODEL),
+            BaseConfig = maps:merge(Config, #{project => Project}),
+            ConfigWithAuth = maps:merge(BaseConfig, Auth),
+            NewConfig = maps:merge(#{
+                region => ?DEFAULT_REGION,
+                model => Model,
+                timeout => ?DEFAULT_TIMEOUT,
+                dimension => ?DEFAULT_DIMENSION
+            }, ConfigWithAuth),
+            {ok, NewConfig}
     end.
 
 %% @doc Check if Vertex AI API is available.
