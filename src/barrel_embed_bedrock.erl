@@ -277,11 +277,10 @@ build_embed_request(Model, Text) ->
 make_request(Config, ApiUrl, Body, Timeout) ->
     AuthType = maps:get(auth_type, Config, api_key),
     Headers = build_headers(Config, AuthType, ApiUrl, Body),
-    case hackney:request(post, ApiUrl, Headers, Body, [{recv_timeout, Timeout}]) of
-        {ok, 200, _RespHeaders, ClientRef} ->
-            hackney:body(ClientRef);
-        {ok, StatusCode, _RespHeaders, ClientRef} ->
-            {ok, RespBody} = hackney:body(ClientRef),
+    case hackney:request(post, ApiUrl, Headers, Body, [{recv_timeout, Timeout}, {with_body, true}]) of
+        {ok, 200, _RespHeaders, RespBody} ->
+            {ok, RespBody};
+        {ok, StatusCode, _RespHeaders, RespBody} ->
             {error, {http_error, StatusCode, RespBody}};
         {error, Reason} ->
             {error, {request_failed, Reason}}

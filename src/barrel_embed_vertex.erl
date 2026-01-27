@@ -130,16 +130,10 @@ embed_batch(Texts, Config) ->
     Body = build_request_body(Texts),
     Headers = build_headers(Config),
 
-    case hackney:request(post, ApiUrl, Headers, Body, [{recv_timeout, Timeout}]) of
-        {ok, 200, _RespHeaders, ClientRef} ->
-            case hackney:body(ClientRef) of
-                {ok, RespBody} ->
-                    parse_embeddings_response(RespBody);
-                {error, Reason} ->
-                    {error, {body_read_failed, Reason}}
-            end;
-        {ok, StatusCode, _RespHeaders, ClientRef} ->
-            {ok, RespBody} = hackney:body(ClientRef),
+    case hackney:request(post, ApiUrl, Headers, Body, [{recv_timeout, Timeout}, {with_body, true}]) of
+        {ok, 200, _RespHeaders, RespBody} ->
+            parse_embeddings_response(RespBody);
+        {ok, StatusCode, _RespHeaders, RespBody} ->
             {error, {http_error, StatusCode, RespBody}};
         {error, Reason} ->
             {error, {request_failed, Reason}}
@@ -217,7 +211,7 @@ has_auth(Config) ->
 
 %% @private
 build_url(Project, Region, Model) ->
-    <<Region/binary, "-aiplatform.googleapis.com/v1/projects/",
+    <<"https://", Region/binary, "-aiplatform.googleapis.com/v1/projects/",
       Project/binary, "/locations/", Region/binary,
       "/publishers/google/models/", Model/binary, ":predict">>.
 
