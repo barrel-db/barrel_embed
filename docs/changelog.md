@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-01-27
+
+### Added
+
+#### Virtual Environment Support
+
+- Added `venv` configuration option for all Python providers (local, fastembed, splade, colbert, clip)
+- Proper venv activation in port environment (sets `VIRTUAL_ENV`, `PATH`, `PYTHONPATH`)
+- New `scripts/setup_venv.sh` for fast venv setup using `uv`
+- Requirements files for different installation profiles:
+  - `priv/requirements.txt` - Default (sentence-transformers + uvloop)
+  - `priv/requirements-minimal.txt` - Minimal (no ML libs)
+  - `priv/requirements-full.txt` - All providers
+- Documentation: `docs/venv-setup.md`
+
+#### CI Improvements
+
+- Added `integration:venv` job to test Erlang-Python venv communication
+- Python tests now use `uv` for faster dependency installation
+
+### Changed
+
+- `setup_python_venv.sh` now uses `uv` when available (falls back to pip)
+- Python queue default limit changed from `schedulers/2 + 1` to `schedulers * 2 + 1`
+- Updated all Python provider documentation with venv examples
+
 ## [0.2.0] - 2026-01-27
 
 ### Added
@@ -88,5 +114,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Application supervision tree with ETS-based rate limiting
 - Comprehensive EUnit test suite
 
+[1.0.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v1.0.0
 [0.2.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v0.2.0
 [0.1.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v0.1.0
