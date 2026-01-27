@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Developer guide for adding cloud providers (`docs/dev/adding-provider.md`)
 - Individual documentation pages for all cloud providers
 
+#### Tooling
+
+- `scripts/setup_python_venv.sh` for one-command Python venv setup
+
 #### Python Engine
 
 - Async request multiplexing for concurrent embeddings
