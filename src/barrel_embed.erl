@@ -212,6 +212,8 @@ provider_module(Module) when is_atom(Module) -> Module.
 
 %% Initialize a provider
 init_provider(Module, Config) ->
+    %% Ensure module is loaded before checking exports
+    code:ensure_loaded(Module),
     case erlang:function_exported(Module, init, 1) of
         true ->
             try
