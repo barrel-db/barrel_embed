@@ -24,7 +24,7 @@
 %%%
 %%% == Configuration ==
 %%% ```
-%%% %% In sys.config (optional, default is schedulers div 2 + 1)
+%%% %% In sys.config (optional, default is schedulers * 2 + 1)
 %%% {barrel_embed, [
 %%%     {python_max_concurrent, 4}
 %%% ]}
@@ -82,7 +82,7 @@ release() ->
 max_concurrent() ->
     case application:get_env(barrel_embed, python_max_concurrent) of
         {ok, N} when is_integer(N), N > 0 -> N;
-        _ -> max(1, erlang:system_info(schedulers) div 2 + 1)
+        _ -> erlang:system_info(schedulers) * 2 + 1
     end.
 
 %% @doc Get the current number of running Python executions.

@@ -124,7 +124,7 @@ The local provider uses a Python subprocess. barrel_embed includes rate limiting
 ```erlang
 %% sys.config
 {barrel_embed, [
-    {python_max_concurrent, 4}  % default: schedulers/2 + 1
+    {python_max_concurrent, 4}  % default: schedulers * 2 + 1
 ]}
 ```
 
