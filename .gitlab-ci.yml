@@ -28,7 +28,7 @@ python:test:
   before_script:
     - pip install uv
     - uv venv .venv
-    - cd priv && uv pip install -e ".[dev]" --python ../.venv/bin/python
+    - uv pip install -e "priv[dev]" --python .venv/bin/python
   script:
     - source .venv/bin/activate
     - cd priv && pytest tests/ -v --tb=short
@@ -49,7 +49,7 @@ integration:venv:
     - export PATH="$HOME/.local/bin:$PATH"
     # Setup venv with uv
     - uv venv .venv
-    - cd priv && uv pip install -e ".[sentence-transformers]" --python ../.venv/bin/python && cd ..
+    - uv pip install -e "priv[sentence-transformers]" --python .venv/bin/python
   script:
     - ./rebar3 compile
     # Test venv integration with Erlang
