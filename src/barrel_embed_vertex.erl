@@ -85,12 +85,14 @@ init(Config) ->
                     E;
                 {_, Auth} ->
                     Model = maps:get(model, Config, ?DEFAULT_MODEL),
+                    BaseConfig = maps:merge(Config, #{project => Project}),
+                    ConfigWithAuth = maps:merge(BaseConfig, Auth),
                     NewConfig = maps:merge(#{
                         region => ?DEFAULT_REGION,
                         model => Model,
                         timeout => ?DEFAULT_TIMEOUT,
                         dimension => ?DEFAULT_DIMENSION
-                    }, maps:merge(Config, #{project => Project}, Auth)),
+                    }, ConfigWithAuth),
                     {ok, NewConfig}
             end;
         {error, Reason} ->
