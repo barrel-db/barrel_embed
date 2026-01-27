@@ -5,6 +5,11 @@ Lightweight local embedding using FastEmbed (ONNX-based).
 ## Requirements
 
 ```bash
+# Using virtualenv with uv (recommended)
+./scripts/setup_venv.sh
+uv pip install fastembed --python .venv/bin/python
+
+# Or install manually
 pip install fastembed
 ```
 
@@ -22,6 +27,16 @@ FastEmbed is a lighter alternative to sentence-transformers:
 ## Configuration
 
 ```erlang
+%% Using virtualenv (recommended)
+{ok, State} = barrel_embed:init(#{
+    embedder => {fastembed, #{
+        venv => "/absolute/path/to/.venv",
+        model => "BAAI/bge-small-en-v1.5",     % default
+        timeout => 120000                       % default, ms
+    }}
+}).
+
+%% Using system Python
 {ok, State} = barrel_embed:init(#{
     embedder => {fastembed, #{
         python => "python3",                    % default
@@ -35,7 +50,8 @@ FastEmbed is a lighter alternative to sentence-transformers:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `python` | string | `"python3"` | Python executable |
+| `venv` | string | `undefined` | Path to virtualenv (recommended) |
+| `python` | string | `"python3"` | Python executable (if no venv) |
 | `model` | string | `"BAAI/bge-small-en-v1.5"` | Model name |
 | `timeout` | integer | `120000` | Timeout in milliseconds |
 

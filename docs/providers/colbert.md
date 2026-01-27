@@ -11,12 +11,27 @@ ColBERT (Contextualized Late Interaction over BERT) produces **multiple vectors 
 ## Requirements
 
 ```bash
+# Using virtualenv with uv (recommended)
+./scripts/setup_venv.sh
+uv pip install transformers torch --python .venv/bin/python
+
+# Or install manually
 pip install transformers torch
 ```
 
 ## Configuration
 
 ```erlang
+%% Using virtualenv (recommended)
+{ok, State} = barrel_embed:init(#{
+    embedder => {colbert, #{
+        venv => "/absolute/path/to/.venv",
+        model => "colbert-ir/colbertv2.0",     % default
+        timeout => 120000                       % default, ms
+    }}
+}).
+
+%% Using system Python
 {ok, State} = barrel_embed:init(#{
     embedder => {colbert, #{
         python => "python3",                    % default
@@ -30,7 +45,8 @@ pip install transformers torch
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `python` | string | `"python3"` | Python executable |
+| `venv` | string | `undefined` | Path to virtualenv (recommended) |
+| `python` | string | `"python3"` | Python executable (if no venv) |
 | `model` | string | `"colbert-ir/colbertv2.0"` | Model name |
 | `timeout` | integer | `120000` | Timeout in milliseconds |
 

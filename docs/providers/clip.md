@@ -14,12 +14,27 @@ CLIP (Contrastive Language-Image Pre-training) encodes **both images and text in
 ## Requirements
 
 ```bash
+# Using virtualenv with uv (recommended)
+./scripts/setup_venv.sh
+uv pip install transformers torch pillow --python .venv/bin/python
+
+# Or install manually
 pip install transformers torch pillow
 ```
 
 ## Configuration
 
 ```erlang
+%% Using virtualenv (recommended)
+{ok, State} = barrel_embed:init(#{
+    embedder => {clip, #{
+        venv => "/absolute/path/to/.venv",
+        model => "openai/clip-vit-base-patch32",   % default
+        timeout => 120000                           % default, ms
+    }}
+}).
+
+%% Using system Python
 {ok, State} = barrel_embed:init(#{
     embedder => {clip, #{
         python => "python3",                        % default
@@ -33,7 +48,8 @@ pip install transformers torch pillow
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `python` | string | `"python3"` | Python executable |
+| `venv` | string | `undefined` | Path to virtualenv (recommended) |
+| `python` | string | `"python3"` | Python executable (if no venv) |
 | `model` | string | `"openai/clip-vit-base-patch32"` | Model name |
 | `timeout` | integer | `120000` | Timeout in milliseconds |
 

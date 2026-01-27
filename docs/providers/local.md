@@ -5,12 +5,26 @@ Local embedding generation using Python and sentence-transformers.
 ## Requirements
 
 ```bash
+# Using virtualenv with uv (recommended)
+./scripts/setup_venv.sh
+
+# Or install manually
 pip install sentence-transformers
 ```
 
 ## Configuration
 
 ```erlang
+%% Using virtualenv (recommended)
+{ok, State} = barrel_embed:init(#{
+    embedder => {local, #{
+        venv => "/absolute/path/to/.venv",
+        model => "BAAI/bge-base-en-v1.5",      % default
+        timeout => 120000                       % default, ms
+    }}
+}).
+
+%% Using system Python
 {ok, State} = barrel_embed:init(#{
     embedder => {local, #{
         python => "python3",                    % default
@@ -24,9 +38,12 @@ pip install sentence-transformers
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `python` | string | `"python3"` | Python executable |
+| `venv` | string | `undefined` | Path to virtualenv (recommended) |
+| `python` | string | `"python3"` | Python executable (if no venv) |
 | `model` | string | `"BAAI/bge-base-en-v1.5"` | Model name |
 | `timeout` | integer | `120000` | Timeout in milliseconds |
+
+When `venv` is specified, the provider properly activates the virtualenv by setting `VIRTUAL_ENV`, `PATH`, and `PYTHONPATH` environment variables.
 
 ## Supported Models
 
@@ -63,17 +80,34 @@ Any model from HuggingFace that works with sentence-transformers:
 
 ## Python Environment
 
-### Using Virtual Environment
+### Using Virtual Environment (Recommended)
+
+The `venv` option properly activates the virtualenv environment:
 
 ```erlang
 {ok, State} = barrel_embed:init(#{
     embedder => {local, #{
-        python => "/path/to/venv/bin/python"
+        venv => "/absolute/path/to/.venv"
     }}
 }).
 ```
 
+This sets the correct environment variables (`VIRTUAL_ENV`, `PATH`) so Python packages are discovered correctly.
+
+### Quick Setup
+
+```bash
+# Using uv (fast)
+./scripts/setup_venv.sh
+
+# Or manually with uv
+uv venv .venv
+uv pip install -r priv/requirements.txt --python .venv/bin/python
+```
+
 ### Using Conda
+
+For Conda environments, use the `python` option:
 
 ```erlang
 {ok, State} = barrel_embed:init(#{

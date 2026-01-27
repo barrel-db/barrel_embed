@@ -203,7 +203,30 @@ Score = barrel_embed_colbert:maxsim_score(QueryVecs, DocVecs).
 ]}
 ```
 
-## Python Dependencies
+## Python Setup
+
+### Using Virtual Environment (Recommended)
+
+```bash
+# Quick setup with uv (fast)
+./scripts/setup_venv.sh
+
+# Or manually
+uv venv .venv
+uv pip install -r priv/requirements.txt --python .venv/bin/python
+```
+
+Then use the venv in your Erlang code:
+
+```erlang
+{ok, State} = barrel_embed:init(#{
+    embedder => {local, #{
+        venv => "/absolute/path/to/.venv"
+    }}
+}).
+```
+
+### Manual Installation
 
 Install based on providers used:
 
@@ -220,6 +243,8 @@ pip install transformers torch
 # For clip provider
 pip install transformers torch pillow
 ```
+
+See [venv-setup.md](docs/venv-setup.md) for detailed virtualenv instructions.
 
 ## License
 

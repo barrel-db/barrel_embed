@@ -59,10 +59,23 @@ Best quality embeddings with minimal setup.
 Full control with sentence-transformers.
 
 ```bash
+# Setup virtualenv (recommended)
+./scripts/setup_venv.sh
+
+# Or install manually
 pip install sentence-transformers
 ```
 
 ```erlang
+%% Using venv (recommended)
+{ok, State} = barrel_embed:init(#{
+    embedder => {local, #{
+        venv => "/absolute/path/to/.venv",
+        model => "BAAI/bge-base-en-v1.5"
+    }}
+}).
+
+%% Or using system Python
 {ok, State} = barrel_embed:init(#{
     embedder => {local, #{
         model => "BAAI/bge-base-en-v1.5"

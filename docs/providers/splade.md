@@ -13,12 +13,27 @@ SPLADE (Sparse Lexical and Expansion) produces **sparse vectors** instead of den
 ## Requirements
 
 ```bash
+# Using virtualenv with uv (recommended)
+./scripts/setup_venv.sh
+uv pip install transformers torch --python .venv/bin/python
+
+# Or install manually
 pip install transformers torch
 ```
 
 ## Configuration
 
 ```erlang
+%% Using virtualenv (recommended)
+{ok, State} = barrel_embed:init(#{
+    embedder => {splade, #{
+        venv => "/absolute/path/to/.venv",
+        model => "prithivida/Splade_PP_en_v1",     % default
+        timeout => 120000                           % default, ms
+    }}
+}).
+
+%% Using system Python
 {ok, State} = barrel_embed:init(#{
     embedder => {splade, #{
         python => "python3",                        % default
@@ -32,7 +47,8 @@ pip install transformers torch
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `python` | string | `"python3"` | Python executable |
+| `venv` | string | `undefined` | Path to virtualenv (recommended) |
+| `python` | string | `"python3"` | Python executable (if no venv) |
 | `model` | string | `"prithivida/Splade_PP_en_v1"` | Model name |
 | `timeout` | integer | `120000` | Timeout in milliseconds |
 
