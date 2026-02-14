@@ -1,39 +1,59 @@
 site_name: barrel_embed
 site_description: Lightweight embedding generation for Erlang
-site_url: https://barrel-db.gitlab.io/barrel-embed
+site_url: https://docs.barrel-db.eu/embed
 
 repo_url: https://gitlab.enki.io/barrel-db/barrel-embed
 repo_name: barrel-db/barrel-embed
+edit_uri: edit/main/
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  font:
+    text: Roboto
+    code: Roboto Mono
   palette:
-    - scheme: default
-      primary: indigo
-      accent: indigo
+    # Dark mode by default
+    - media: "(prefers-color-scheme)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    - scheme: slate
-      primary: indigo
-      accent: indigo
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
-        name: Switch to light mode
+        name: Switch to system preference
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - toc.integrate
+    - search.suggest
+    - search.highlight
     - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/gitlab
 
-markdown_extensions:
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.superfences
-  - pymdownx.tabbed:
-      alternate_style: true
-  - admonition
-  - pymdownx.details
-  - tables
+extra_css:
+  - stylesheets/extra.css
 
 nav:
   - Home: index.md
@@ -63,3 +83,38 @@ nav:
   - Development:
     - Adding a Provider: dev/adding-provider.md
   - Changelog: changelog.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - admonition
+  - tables
+  - attr_list
+  - md_in_html
+  - def_list
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/gitlab
+      link: https://gitlab.enki.io/barrel-db/barrel-embed
+  generator: false

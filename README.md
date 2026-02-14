@@ -1,6 +1,19 @@
+<div align="center">
+
 # barrel_embed
 
-Lightweight embedding generation for Erlang.
+**Lightweight embedding generation for Erlang with 15+ provider backends**
+
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-1.0.0-green.svg)]()
+
+[Documentation](https://docs.barrel-db.eu/embed) |
+[Examples](./examples) |
+[barrel-db.eu](https://barrel-db.eu)
+
+</div>
+
+---
 
 A standalone library for generating text and image embeddings with multiple provider backends and automatic fallback support.
 
@@ -246,6 +259,17 @@ pip install transformers torch pillow
 
 See [venv-setup.md](docs/venv-setup.md) for detailed virtualenv instructions.
 
+## Support
+
+| Channel | For |
+|---------|-----|
+| [GitLab Issues](https://gitlab.enki.io/barrel-db/barrel-embed/-/issues) | Bug reports, feature requests |
+| [Email](mailto:support@barrel-db.eu) | Commercial inquiries |
+
 ## License
 
-Apache-2.0
+Apache-2.0. See [LICENSE](LICENSE) for details.
+
+---
+
+Built by [Enki Multimedia](https://enki-multimedia.eu) | [barrel-db.eu](https://barrel-db.eu)
