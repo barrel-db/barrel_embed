@@ -1,8 +1,8 @@
 %%%-------------------------------------------------------------------
 %%% @doc ColBERT late interaction embedding provider
 %%%
-%%% Uses ColBERT models for multi-vector embeddings. Each document
-%%% produces multiple vectors (one per token) for fine-grained matching.
+%%% Uses erlang_python with ColBERT models for multi-vector embeddings. Each
+%%% document produces multiple vectors (one per token) for fine-grained matching.
 %%%
 %%% == Requirements ==
 %%% ```
@@ -13,7 +13,6 @@
 %%% ```
 %%% Config = #{
 %%%     venv => "/path/to/.venv",              %% Virtualenv path (recommended)
-%%%     python => "python3",                   %% Python executable (if no venv)
 %%%     model => "colbert-ir/colbertv2.0",     %% Model name (default, 128 dims)
 %%%     timeout => 120000                      %% Timeout in ms (default)
 %%% }.
@@ -67,10 +66,10 @@
     maxsim_score/2
 ]).
 
--define(DEFAULT_PYTHON, "python3").
 -define(DEFAULT_MODEL, "colbert-ir/colbertv2.0").
 -define(DEFAULT_TIMEOUT, 120000).
 -define(DEFAULT_DIMENSION, 128).
+-define(PROVIDER, <<"colbert">>).
 
 %% Multi-vector type: list of token vectors
 -type multi_vector() :: [[float()]].
@@ -93,7 +92,6 @@ dimension(Config) ->
 %% @doc Initialize the provider.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
-    Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
     Venv = maps:get(venv, Config, undefined),
@@ -101,45 +99,44 @@ init(Config) ->
     %% Validate model (warning only)
     validate_model(Model),
 
-    %% Build args for python -m barrel_embed
-    Args = ["-m", "barrel_embed",
-            "--provider", "colbert",
-            "--model", Model],
+    %% Initialize Python environment
+    PyConfig = case Venv of
+        undefined -> #{};
+        _ -> #{venv => Venv}
+    end,
 
-    Opts = [
-        {timeout, Timeout},
-        {priv_dir, get_priv_dir()},
-        {venv, Venv}
-    ],
-
-    case barrel_embed_port_server:start_link(Python, Args, Opts) of
-        {ok, Server} ->
-            case barrel_embed_port_server:info(Server, Timeout) of
+    case barrel_embed_py:init(PyConfig) of
+        ok ->
+            ModelBin = ensure_binary(Model),
+            case barrel_embed_py:load_model(?PROVIDER, ModelBin) of
                 {ok, #{dimensions := Dims}} ->
                     {ok, Config#{
-                        server => Server,
                         dimension => Dims,
-                        timeout => Timeout
+                        model => ModelBin,
+                        provider => ?PROVIDER,
+                        timeout => Timeout,
+                        initialized => true
                     }};
                 {ok, _} ->
                     %% No dimensions in response, use default
                     {ok, Config#{
-                        server => Server,
                         dimension => ?DEFAULT_DIMENSION,
-                        timeout => Timeout
+                        model => ModelBin,
+                        provider => ?PROVIDER,
+                        timeout => Timeout,
+                        initialized => true
                     }};
                 {error, Reason} ->
-                    barrel_embed_port_server:stop(Server),
                     {error, Reason}
             end;
         {error, Reason} ->
-            {error, Reason}
+            {error, {init_failed, Reason}}
     end.
 
 %% @doc Check if provider is available.
 -spec available(map()) -> boolean().
-available(#{server := Server}) ->
-    is_process_alive(Server);
+available(#{initialized := true}) ->
+    true;
 available(_Config) ->
     false.
 
@@ -179,10 +176,11 @@ embed_multi(Text, Config) ->
 
 %% @doc Generate multi-vector embeddings for multiple texts.
 -spec embed_batch_multi([binary()], map()) -> {ok, [multi_vector()]} | {error, term()}.
-embed_batch_multi(Texts, #{server := Server, timeout := Timeout}) ->
-    barrel_embed_port_server:embed_multi_batch(Server, Texts, Timeout);
+embed_batch_multi(Texts, #{model := Model, provider := Provider, initialized := true}) ->
+    TextsBin = [ensure_binary(T) || T <- Texts],
+    barrel_embed_py:embed_multi(Provider, Model, TextsBin);
 embed_batch_multi(_Texts, _Config) ->
-    {error, server_not_initialized}.
+    {error, not_initialized}.
 
 %% @doc Calculate MaxSim score between query and document multi-vectors.
 %% This is the standard ColBERT scoring function.
@@ -195,15 +193,12 @@ maxsim_score(QueryVecs, DocVecs) ->
 %% Internal Functions
 %%====================================================================
 
-get_priv_dir() ->
-    case code:priv_dir(barrel_embed) of
-        {error, bad_name} -> "priv";
-        Dir -> Dir
-    end.
+ensure_binary(B) when is_binary(B) -> B;
+ensure_binary(L) when is_list(L) -> unicode:characters_to_binary(L).
 
 %% @private
 validate_model(Model) ->
-    ModelBin = to_binary(Model),
+    ModelBin = ensure_binary(Model),
     case is_known_model(ModelBin) of
         true -> ok;
         false ->
@@ -219,10 +214,6 @@ is_known_model(<<"colbert-ir/colbertv2.0">>) -> true;
 is_known_model(<<"answerdotai/answerai-colbert-small-v1">>) -> true;
 is_known_model(<<"jinaai/jina-colbert-v2">>) -> true;
 is_known_model(_) -> false.
-
-%% @private
-to_binary(S) when is_binary(S) -> S;
-to_binary(S) when is_list(S) -> list_to_binary(S).
 
 %% @private
 %% Mean pooling of token vectors to get single vector

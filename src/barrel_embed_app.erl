@@ -13,9 +13,13 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    %% Initialize the Python execution queue
-    barrel_embed_python_queue:init(),
-    %% Return a dummy supervisor (no processes to supervise)
+    %% Ensure erlang_python is started (should already be via application deps)
+    case application:ensure_all_started(erlang_python) of
+        {ok, _} -> ok;
+        {error, {already_started, _}} -> ok;
+        {error, Reason} ->
+            error_logger:error_msg("Failed to start erlang_python: ~p~n", [Reason])
+    end,
     barrel_embed_sup:start_link().
 
 stop(_State) ->

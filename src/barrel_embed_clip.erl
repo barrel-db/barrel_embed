@@ -1,9 +1,9 @@
 %%%-------------------------------------------------------------------
 %%% @doc CLIP image/text embedding provider
 %%%
-%%% Uses CLIP (Contrastive Language-Image Pre-training) models for
-%%% cross-modal embeddings. Both images and text are encoded into the
-%%% same vector space, enabling image-text similarity search.
+%%% Uses erlang_python with CLIP (Contrastive Language-Image Pre-training)
+%%% models for cross-modal embeddings. Both images and text are encoded into
+%%% the same vector space, enabling image-text similarity search.
 %%%
 %%% == Requirements ==
 %%% ```
@@ -14,7 +14,6 @@
 %%% ```
 %%% Config = #{
 %%%     venv => "/path/to/.venv",                  %% Virtualenv path (recommended)
-%%%     python => "python3",                       %% Python executable (if no venv)
 %%%     model => "openai/clip-vit-base-patch32",   %% Model name (default)
 %%%     timeout => 120000                          %% Timeout in ms (default)
 %%% }.
@@ -68,10 +67,10 @@
     embed_image_batch/2
 ]).
 
--define(DEFAULT_PYTHON, "python3").
 -define(DEFAULT_MODEL, "openai/clip-vit-base-patch32").
 -define(DEFAULT_TIMEOUT, 120000).
 -define(DEFAULT_DIMENSION, 512).
+-define(PROVIDER, <<"clip">>).
 
 %%====================================================================
 %% Behaviour Callbacks
@@ -89,7 +88,6 @@ dimension(Config) ->
 %% @doc Initialize the provider.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
-    Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
     Venv = maps:get(venv, Config, undefined),
@@ -97,45 +95,44 @@ init(Config) ->
     %% Validate model (warning only)
     validate_model(Model),
 
-    %% Build args for python -m barrel_embed
-    Args = ["-m", "barrel_embed",
-            "--provider", "clip",
-            "--model", Model],
+    %% Initialize Python environment
+    PyConfig = case Venv of
+        undefined -> #{};
+        _ -> #{venv => Venv}
+    end,
 
-    Opts = [
-        {timeout, Timeout},
-        {priv_dir, get_priv_dir()},
-        {venv, Venv}
-    ],
-
-    case barrel_embed_port_server:start_link(Python, Args, Opts) of
-        {ok, Server} ->
-            case barrel_embed_port_server:info(Server, Timeout) of
+    case barrel_embed_py:init(PyConfig) of
+        ok ->
+            ModelBin = ensure_binary(Model),
+            case barrel_embed_py:load_model(?PROVIDER, ModelBin) of
                 {ok, #{dimensions := Dims}} ->
                     {ok, Config#{
-                        server => Server,
                         dimension => Dims,
-                        timeout => Timeout
+                        model => ModelBin,
+                        provider => ?PROVIDER,
+                        timeout => Timeout,
+                        initialized => true
                     }};
                 {ok, _} ->
                     %% No dimensions in response, use default
                     {ok, Config#{
-                        server => Server,
                         dimension => ?DEFAULT_DIMENSION,
-                        timeout => Timeout
+                        model => ModelBin,
+                        provider => ?PROVIDER,
+                        timeout => Timeout,
+                        initialized => true
                     }};
                 {error, Reason} ->
-                    barrel_embed_port_server:stop(Server),
                     {error, Reason}
             end;
         {error, Reason} ->
-            {error, Reason}
+            {error, {init_failed, Reason}}
     end.
 
 %% @doc Check if provider is available.
 -spec available(map()) -> boolean().
-available(#{server := Server}) ->
-    is_process_alive(Server);
+available(#{initialized := true}) ->
+    true;
 available(_Config) ->
     false.
 
@@ -150,10 +147,11 @@ embed(Text, Config) ->
 
 %% @doc Generate text embeddings for batch.
 -spec embed_batch([binary()], map()) -> {ok, [[float()]]} | {error, term()}.
-embed_batch(Texts, #{server := Server, timeout := Timeout}) ->
-    barrel_embed_port_server:embed_batch(Server, Texts, Timeout);
+embed_batch(Texts, #{model := Model, provider := Provider, initialized := true}) ->
+    TextsBin = [ensure_binary(T) || T <- Texts],
+    barrel_embed_py:embed(Provider, Model, TextsBin);
 embed_batch(_Texts, _Config) ->
-    {error, server_not_initialized}.
+    {error, not_initialized}.
 
 %%====================================================================
 %% Image Embedding API
@@ -171,24 +169,22 @@ embed_image(ImageBase64, Config) ->
 %% @doc Generate embeddings for multiple images.
 %% Images should be base64-encoded.
 -spec embed_image_batch([binary()], map()) -> {ok, [[float()]]} | {error, term()}.
-embed_image_batch(Images, #{server := Server, timeout := Timeout}) ->
-    barrel_embed_port_server:embed_image_batch(Server, Images, Timeout);
+embed_image_batch(Images, #{model := Model, initialized := true}) ->
+    ImagesBin = [ensure_binary(I) || I <- Images],
+    barrel_embed_py:embed_image(Model, ImagesBin);
 embed_image_batch(_Images, _Config) ->
-    {error, server_not_initialized}.
+    {error, not_initialized}.
 
 %%====================================================================
 %% Internal Functions
 %%====================================================================
 
-get_priv_dir() ->
-    case code:priv_dir(barrel_embed) of
-        {error, bad_name} -> "priv";
-        Dir -> Dir
-    end.
+ensure_binary(B) when is_binary(B) -> B;
+ensure_binary(L) when is_list(L) -> unicode:characters_to_binary(L).
 
 %% @private
 validate_model(Model) ->
-    ModelBin = to_binary(Model),
+    ModelBin = ensure_binary(Model),
     case is_known_model(ModelBin) of
         true -> ok;
         false ->
@@ -205,7 +201,3 @@ is_known_model(<<"openai/clip-vit-base-patch16">>) -> true;
 is_known_model(<<"openai/clip-vit-large-patch14">>) -> true;
 is_known_model(<<"laion/CLIP-ViT-B-32-laion2B-s34B-b79K">>) -> true;
 is_known_model(_) -> false.
-
-%% @private
-to_binary(S) when is_binary(S) -> S;
-to_binary(S) when is_list(S) -> list_to_binary(S).
