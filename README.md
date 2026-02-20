@@ -5,7 +5,7 @@
 **Lightweight embedding generation for Erlang with 15+ provider backends**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-2.0.0-green.svg)]()
 
 [Documentation](https://docs.barrel-db.eu/embed) |
 [Examples](./examples) |
@@ -22,7 +22,7 @@ A standalone library for generating text and image embeddings with multiple prov
 - Multiple embedding providers with automatic fallback
 - Provider chain configuration for high availability
 - Batch embedding with configurable chunk size
-- Python execution rate limiting for resource management
+- High-performance Python integration via erlang_python NIF
 - Sparse, multi-vector, and cross-modal embeddings
 
 ## Providers
@@ -43,9 +43,11 @@ Add to your `rebar.config`:
 
 ```erlang
 {deps, [
-    {barrel_embed, {git, "https://gitlab.enki.io/barrel-db/barrel-embed.git", {tag, "v1.0.0"}}}
+    {barrel_embed, {git, "https://gitlab.enki.io/barrel-db/barrel-embed.git", {tag, "v2.0.0"}}}
 ]}.
 ```
+
+**Note**: barrel_embed uses [erlang_python](https://github.com/openmetrics/erlang_python) for Python integration via NIF. Ensure your system has Python 3.9+ installed.
 
 ## Quick Start
 
@@ -209,11 +211,16 @@ Score = barrel_embed_colbert:maxsim_score(QueryVecs, DocVecs).
 
 ## Application Configuration
 
+Python concurrency is managed by erlang_python. Configure in `sys.config`:
+
 ```erlang
 %% sys.config
-{barrel_embed, [
-    {python_max_concurrent, 4}  %% Max concurrent Python executions
-]}
+[
+    {erlang_python, [
+        {num_workers, 4},           %% Number of Python worker threads
+        {num_subinterp_workers, 4}  %% Sub-interpreters (Python 3.12+)
+    ]}
+].
 ```
 
 ## Python Setup

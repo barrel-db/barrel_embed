@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-02-20
+
+### Changed
+
+#### New erlang_python NIF Backend
+
+- **Breaking**: Replaced port-based stdio JSON communication with erlang_python 1.5.0 NIF integration
+- All Python providers now use direct `py:call` instead of subprocess communication
+- 2.7x improvement in batch throughput (936 vs 348 texts/sec with bge-small-en-v1.5)
+- Requires erlang_python 1.5.0+ as a dependency
+
+#### New Modules
+
+- `barrel_embed_py` - Erlang wrapper for py:call with timeout support
+- `priv/barrel_embed/nif_api.py` - Thread-safe Python API for model caching
+
+### Removed
+
+- `barrel_embed_port_server` - Port-based Python server (replaced by NIF)
+- `barrel_embed_python_queue` - Rate limiting queue (erlang_python handles this)
+- `priv/barrel_embed/server.py` - Async stdio server
+- `priv/barrel_embed/__main__.py` - CLI entry point
+- `priv/barrel_embed/providers/` - Provider classes (now in nif_api.py)
+
+### Migration
+
+If you were using custom provider configurations, the API remains the same.
+The `venv` option is still supported and recommended:
+
+```erlang
+{ok, State} = barrel_embed:init(#{
+    embedder => {local, #{
+        venv => "/path/to/.venv"
+    }}
+}).
+```
+
 ## [1.0.0] - 2026-01-27
 
 ### Added
@@ -114,6 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Application supervision tree with ETS-based rate limiting
 - Comprehensive EUnit test suite
 
+[2.0.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v2.0.0
 [1.0.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v1.0.0
 [0.2.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v0.2.0
 [0.1.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v0.1.0
