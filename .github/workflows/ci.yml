@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: apt-get update && apt-get install -y cmake python3 python3-venv python3-pip curl
+        run: apt-get update && apt-get install -y cmake python3 python3-dev python3-venv python3-pip curl
 
       - name: Install uv
         run: |
@@ -24,7 +24,7 @@ jobs:
 
       - name: Setup Python venv
         run: |
-          $HOME/.local/bin/uv venv .venv
+          $HOME/.local/bin/uv venv .venv --python python3
           $HOME/.local/bin/uv pip install -e "priv[sentence-transformers]" --python .venv/bin/python
 
       - name: Cache rebar3
@@ -35,8 +35,8 @@ jobs:
 
       - name: Compile
         env:
-          Python3_ROOT_DIR: ${{ github.workspace }}/.venv
-        run: rebar3 compile
+          Python3_ROOT_DIR: /usr
+        run: rm -f rebar.lock && rebar3 compile
 
       - name: Run EUnit tests
         env:
@@ -75,7 +75,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          apt-get update && apt-get install -y cmake python3 python3-venv python3-pip curl
+          apt-get update && apt-get install -y cmake python3 python3-dev python3-venv python3-pip curl
 
       - name: Install uv
         run: |
@@ -84,12 +84,14 @@ jobs:
 
       - name: Setup Python venv
         run: |
-          $HOME/.local/bin/uv venv .venv
+          $HOME/.local/bin/uv venv .venv --python python3
           $HOME/.local/bin/uv pip install -e "priv[sentence-transformers]" --python .venv/bin/python
 
       - name: Run integration test
+        env:
+          Python3_ROOT_DIR: /usr
         run: |
-          rebar3 compile
+          rm -f rebar.lock && rebar3 compile
           rebar3 shell --eval '
             VenvPath = filename:absname(".venv"),
             io:format("Testing venv at: ~s~n", [VenvPath]),
@@ -113,7 +115,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: apt-get update && apt-get install -y cmake python3 python3-venv python3-pip curl
+        run: apt-get update && apt-get install -y cmake python3 python3-dev python3-venv python3-pip curl
 
       - name: Install uv
         run: |
@@ -122,7 +124,7 @@ jobs:
 
       - name: Setup Python venv
         run: |
-          $HOME/.local/bin/uv venv .venv
+          $HOME/.local/bin/uv venv .venv --python python3
           $HOME/.local/bin/uv pip install -e "priv" --python .venv/bin/python
 
       - name: Cache PLT
@@ -133,8 +135,8 @@ jobs:
 
       - name: Dialyzer
         env:
-          Python3_ROOT_DIR: ${{ github.workspace }}/.venv
-        run: rebar3 dialyzer
+          Python3_ROOT_DIR: /usr
+        run: rm -f rebar.lock && rebar3 dialyzer
 
   xref:
     runs-on: ubuntu-latest
@@ -144,7 +146,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: apt-get update && apt-get install -y cmake python3 python3-venv python3-pip curl
+        run: apt-get update && apt-get install -y cmake python3 python3-dev python3-venv python3-pip curl
 
       - name: Install uv
         run: |
@@ -153,10 +155,10 @@ jobs:
 
       - name: Setup Python venv
         run: |
-          $HOME/.local/bin/uv venv .venv
+          $HOME/.local/bin/uv venv .venv --python python3
           $HOME/.local/bin/uv pip install -e "priv" --python .venv/bin/python
 
       - name: Xref
         env:
-          Python3_ROOT_DIR: ${{ github.workspace }}/.venv
-        run: rebar3 xref
+          Python3_ROOT_DIR: /usr
+        run: rm -f rebar.lock && rebar3 xref
