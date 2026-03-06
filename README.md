@@ -43,7 +43,7 @@ Add to your `rebar.config`:
 
 ```erlang
 {deps, [
-    {barrel_embed, {git, "https://gitlab.enki.io/barrel-db/barrel-embed.git", {tag, "v2.0.0"}}}
+    {barrel_embed, "2.0.0"}
 ]}.
 ```
 
@@ -264,13 +264,13 @@ pip install transformers torch
 pip install transformers torch pillow
 ```
 
-See [venv-setup.md](docs/venv-setup.md) for detailed virtualenv instructions.
+See [venv-setup](https://docs.barrel-db.eu/embed/venv-setup/) for detailed virtualenv instructions.
 
 ## Support
 
 | Channel | For |
 |---------|-----|
-| [GitLab Issues](https://gitlab.enki.io/barrel-db/barrel-embed/-/issues) | Bug reports, feature requests |
+| [GitHub Issues](https://github.com/barrel-db/barrel_embed/issues) | Bug reports, feature requests |
 | [Email](mailto:support@barrel-db.eu) | Commercial inquiries |
 
 ## License
