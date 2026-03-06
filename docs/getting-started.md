@@ -6,7 +6,7 @@ Add barrel_embed to your `rebar.config`:
 
 ```erlang
 {deps, [
-    {barrel_embed, {git, "https://gitlab.enki.io/barrel-db/barrel-embed.git", {tag, "v1.0.0"}}}
+    {barrel_embed, {git, "https://github.com/barrel-db/barrel_embed.git", {tag, "v1.0.0"}}}
 ]}.
 ```
 

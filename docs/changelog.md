@@ -151,7 +151,7 @@ The `venv` option is still supported and recommended:
 - Application supervision tree with ETS-based rate limiting
 - Comprehensive EUnit test suite
 
-[2.0.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v2.0.0
-[1.0.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v1.0.0
-[0.2.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v0.2.0
-[0.1.0]: https://gitlab.enki.io/barrel-db/barrel-embed/-/releases/v0.1.0
+[2.0.0]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.0.0
+[1.0.0]: https://github.com/barrel-db/barrel_embed/releases/tag/v1.0.0
+[0.2.0]: https://github.com/barrel-db/barrel_embed/releases/tag/v0.2.0
+[0.1.0]: https://github.com/barrel-db/barrel_embed/releases/tag/v0.1.0
