@@ -5,7 +5,7 @@
 **Lightweight embedding generation for Erlang with 15+ provider backends**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.0.0-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-2.0.1-green.svg)]()
 
 [Documentation](https://docs.barrel-db.eu/embed) |
 [Examples](./examples) |
@@ -43,7 +43,7 @@ Add to your `rebar.config`:
 
 ```erlang
 {deps, [
-    {barrel_embed, "2.0.0"}
+    {barrel_embed, "2.0.1"}
 ]}.
 ```
 
