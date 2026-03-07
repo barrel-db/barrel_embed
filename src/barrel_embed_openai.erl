@@ -102,8 +102,7 @@ available(Config) ->
                 {<<"Content-Type">>, <<"application/json">>}
             ],
             case hackney:request(get, ApiUrl, Headers, <<>>, [{recv_timeout, Timeout}]) of
-                {ok, 200, _, ClientRef} ->
-                    _ = hackney:skip_body(ClientRef),
+                {ok, 200, _, _Body} ->
                     true;
                 _ ->
                     false
@@ -140,15 +139,9 @@ embed_batch(Texts, Config) ->
     ],
 
     case hackney:request(post, ApiUrl, Headers, Body, [{recv_timeout, Timeout}]) of
-        {ok, 200, _RespHeaders, ClientRef} ->
-            case hackney:body(ClientRef) of
-                {ok, RespBody} ->
-                    parse_embeddings_response(RespBody);
-                {error, Reason} ->
-                    {error, {body_read_failed, Reason}}
-            end;
-        {ok, StatusCode, _RespHeaders, ClientRef} ->
-            {ok, RespBody} = hackney:body(ClientRef),
+        {ok, 200, _RespHeaders, RespBody} ->
+            parse_embeddings_response(RespBody);
+        {ok, StatusCode, _RespHeaders, RespBody} ->
             {error, {http_error, StatusCode, RespBody}};
         {error, Reason} ->
             {error, {request_failed, Reason}}

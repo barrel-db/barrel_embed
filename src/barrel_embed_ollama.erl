@@ -80,8 +80,7 @@ available(Config) ->
     ApiUrl = <<Url/binary, "/api/tags">>,
 
     case hackney:request(get, ApiUrl, [], <<>>, [{recv_timeout, Timeout}]) of
-        {ok, 200, _, ClientRef} ->
-            _ = hackney:skip_body(ClientRef),
+        {ok, 200, _, _Body} ->
             true;
         _ ->
             false
@@ -124,15 +123,9 @@ embed_with_api(Text, Url, Model, Timeout, ApiPath) ->
     Headers = [{<<"Content-Type">>, <<"application/json">>}],
 
     case hackney:request(post, ApiUrl, Headers, Body, [{recv_timeout, Timeout}]) of
-        {ok, 200, _RespHeaders, ClientRef} ->
-            case hackney:body(ClientRef) of
-                {ok, RespBody} ->
-                    parse_embedding_response(RespBody, ApiPath);
-                {error, Reason} ->
-                    {error, {body_read_failed, Reason}}
-            end;
-        {ok, StatusCode, _RespHeaders, ClientRef} ->
-            {ok, RespBody} = hackney:body(ClientRef),
+        {ok, 200, _RespHeaders, RespBody} ->
+            parse_embedding_response(RespBody, ApiPath);
+        {ok, StatusCode, _RespHeaders, RespBody} ->
             {error, {http_error, StatusCode, RespBody}};
         {error, Reason} ->
             {error, {request_failed, Reason}}
@@ -154,19 +147,12 @@ embed_batch(Texts, Config) ->
     Headers = [{<<"Content-Type">>, <<"application/json">>}],
 
     case hackney:request(post, ApiUrl, Headers, Body, [{recv_timeout, Timeout}]) of
-        {ok, 200, _RespHeaders, ClientRef} ->
-            case hackney:body(ClientRef) of
-                {ok, RespBody} ->
-                    parse_batch_response(RespBody);
-                {error, Reason} ->
-                    {error, {body_read_failed, Reason}}
-            end;
-        {ok, 404, _, ClientRef} ->
+        {ok, 200, _RespHeaders, RespBody} ->
+            parse_batch_response(RespBody);
+        {ok, 404, _, _RespBody} ->
             %% Old API doesn't support batch, fall back to sequential
-            _ = hackney:skip_body(ClientRef),
             embed_batch_sequential(Texts, Config);
-        {ok, StatusCode, _RespHeaders, ClientRef} ->
-            {ok, RespBody} = hackney:body(ClientRef),
+        {ok, StatusCode, _RespHeaders, RespBody} ->
             {error, {http_error, StatusCode, RespBody}};
         {error, Reason} ->
             {error, {request_failed, Reason}}
