@@ -47,28 +47,36 @@
 
 %% @doc Initialize the Python environment.
 %% Activates venv if configured and adds priv dir to Python path.
+%% If preload was configured via barrel_embed_preload, path setup is skipped.
 -spec init(map()) -> ok | {error, term()}.
 init(Config) ->
     try
-        %% Activate venv if configured
-        case maps:get(venv, Config, undefined) of
-            undefined -> ok;
-            Venv when is_list(Venv) ->
-                py:activate_venv(unicode:characters_to_binary(Venv));
-            Venv when is_binary(Venv) ->
-                py:activate_venv(Venv)
-        end,
+        %% If preload was configured, path is already set up
+        case py_preload:has_preload() of
+            true ->
+                %% Preload already configured venv and path
+                ok;
+            false ->
+                %% Activate venv if configured
+                case maps:get(venv, Config, undefined) of
+                    undefined -> ok;
+                    Venv when is_list(Venv) ->
+                        py:activate_venv(unicode:characters_to_binary(Venv));
+                    Venv when is_binary(Venv) ->
+                        py:activate_venv(Venv)
+                end,
 
-        %% Add priv dir to Python path
-        PrivDir = get_priv_dir(),
-        Code = iolist_to_binary([
-            <<"import sys\n">>,
-            <<"if '">>, PrivDir, <<"' not in sys.path:\n">>,
-            <<"    sys.path.insert(0, '">>, PrivDir, <<"')\n">>
-        ]),
-        case py:exec(Code) of
-            ok -> ok;
-            {error, _} = Err -> Err
+                %% Add priv dir to Python path
+                PrivDir = get_priv_dir(),
+                Code = iolist_to_binary([
+                    <<"import sys\n">>,
+                    <<"if '">>, PrivDir, <<"' not in sys.path:\n">>,
+                    <<"    sys.path.insert(0, '">>, PrivDir, <<"')\n">>
+                ]),
+                case py:exec(Code) of
+                    ok -> ok;
+                    {error, _} = Err -> Err
+                end
         end
     catch
         error:Reason ->

@@ -9,7 +9,11 @@
     hackney,
     erlang_python
    ]},
-  {env,[]},
+  {env,[
+    {preload_models, []},     %% [{Provider, ModelName}] - models to preload at startup
+    {venv, undefined},        %% Optional venv path for Python
+    {preload_timeout, 600000} %% 10 min timeout for preloading
+  ]},
   {modules, []},
   {licenses, ["Apache-2.0"]},
   {links, [

@@ -13,6 +13,10 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
+    %% Setup preload BEFORE starting erlang_python so models are
+    %% preloaded during interpreter initialization
+    barrel_embed_preload:setup(),
+
     %% Ensure erlang_python is started (should already be via application deps)
     case application:ensure_all_started(erlang_python) of
         {ok, _} -> ok;

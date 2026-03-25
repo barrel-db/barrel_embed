@@ -1,0 +1,24 @@
+services:
+  barrel_embed:
+    build:
+      context: ../..
+      dockerfile: examples/preload/Dockerfile
+    volumes:
+      # Cache downloaded models
+      - model-cache:/root/.cache
+    environment:
+      - BARREL_EMBED_VENV=/opt/venv
+    stdin_open: true
+    tty: true
+    # Setup preload BEFORE starting apps, then run example
+    # --start-clean prevents auto-starting apps so we can setup preload first
+    # Note: Only preload path setup, not models (model download can timeout)
+    command: >
+      rebar3 shell --start-clean --eval "
+        barrel_embed_preload:setup(#{models => [], venv => <<\"/opt/venv\">>}),
+        application:ensure_all_started(barrel_embed),
+        preload_example:run().
+      "
+
+volumes:
+  model-cache:
