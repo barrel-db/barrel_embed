@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-03-26
+
+### Added
+
+- Model preloading support via `barrel_embed_preload` module
+- New app env options: `preload_models`, `venv`, `preload_timeout`
+- Docker example demonstrating preloading (`examples/preload/`)
+- End-to-end tests for preload functionality
+
+### Changed
+
+- Upgraded erlang_python from 1.8.1 to 2.2.0
+- App startup now initializes Python path automatically
+- `barrel_embed_py:init/1` always adds priv dir to Python path
+
+### Configuration
+
+Models can be preloaded at startup via sys.config:
+
+```erlang
+[{barrel_embed, [
+    {preload_models, [
+        {fastembed, <<"BAAI/bge-small-en-v1.5">>}
+    ]},
+    {venv, <<"/path/to/.venv">>}
+]}].
+```
+
 ## [2.0.1] - 2026-03-07
 
 ### Added
@@ -166,6 +194,7 @@ The `venv` option is still supported and recommended:
 - Application supervision tree with ETS-based rate limiting
 - Comprehensive EUnit test suite
 
+[2.1.0]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.1.0
 [2.0.1]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.0.1
 [2.0.0]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.0.0
 [1.0.0]: https://github.com/barrel-db/barrel_embed/releases/tag/v1.0.0
