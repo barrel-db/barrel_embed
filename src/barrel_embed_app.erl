@@ -24,6 +24,11 @@ start(_StartType, _StartArgs) ->
         {error, Reason} ->
             error_logger:error_msg("Failed to start erlang_python: ~p~n", [Reason])
     end,
+
+    %% Ensure priv dir is in Python path (in case erlang_python was already running)
+    Venv = application:get_env(barrel_embed, venv, undefined),
+    barrel_embed_py:init(#{venv => Venv}),
+
     barrel_embed_sup:start_link().
 
 stop(_State) ->
