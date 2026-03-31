@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Covers init, embed, embed_batch, dimension, and availability
   - Error handling tests for unavailable endpoints
 
+### Changed
+
+- Upgraded erlang_python from 2.2.0 to 2.3.0
+
 ## [2.1.0] - 2026-03-26
 
 ### Added
