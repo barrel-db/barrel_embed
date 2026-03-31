@@ -67,6 +67,7 @@ jobs:
       - name: Run integration test
         env:
           Python3_ROOT_DIR: /usr
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           rm -f rebar.lock && rebar3 compile
           rebar3 shell --eval '
