@@ -11,19 +11,26 @@ from typing import Dict, List, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Model cache - thread-safe with lock
-_models: Dict[Tuple[str, str], Any] = {}
-_lock = threading.Lock()
+# Thread-local model cache - each executor thread gets its own model instances
+# This prevents segfaults from numpy/torch thread-local state corruption when
+# models are loaded on one thread but used from another
+_thread_local = threading.local()
+
+
+def _get_thread_models():
+    """Get the models dict for the current thread."""
+    if not hasattr(_thread_local, 'models'):
+        _thread_local.models = {}
+    return _thread_local.models
 
 
 def _get_model(provider: str, model_name: str):
-    """Thread-safe lazy model loading."""
+    """Thread-local model loading - each thread gets its own instance."""
+    models = _get_thread_models()
     key = (provider, model_name)
-    if key not in _models:
-        with _lock:
-            if key not in _models:
-                _models[key] = _load_model(provider, model_name)
-    return _models[key]
+    if key not in models:
+        models[key] = _load_model(provider, model_name)
+    return models[key]
 
 
 def _load_model(provider: str, model_name: str):
@@ -340,7 +347,7 @@ def embed_image(model_name: str, images_base64: list) -> list:
 
 
 def unload_model(provider: str, model_name: str) -> bool:
-    """Unload a model to free memory.
+    """Unload a model from current thread's cache to free memory.
 
     Args:
         provider: Provider type
@@ -349,19 +356,19 @@ def unload_model(provider: str, model_name: str) -> bool:
     Returns:
         True if model was unloaded, False if not found
     """
+    models = _get_thread_models()
     key = (provider, model_name)
-    with _lock:
-        if key in _models:
-            del _models[key]
-            return True
+    if key in models:
+        del models[key]
+        return True
     return False
 
 
 def loaded_models() -> list:
-    """List all currently loaded models.
+    """List all models loaded in current thread's cache.
 
     Returns:
         List of (provider, model_name) tuples
     """
-    with _lock:
-        return list(_models.keys())
+    models = _get_thread_models()
+    return list(models.keys())
