@@ -1,25 +1,20 @@
 %%%-------------------------------------------------------------------
 %%% @doc ColBERT late interaction embedding provider
 %%%
-%%% Uses erlang_python with ColBERT models for multi-vector embeddings. Each
-%%% document produces multiple vectors (one per token) for fine-grained matching.
+%%% Uses ColBERT models for multi-vector embeddings. Each document
+%%% produces multiple vectors (one per token) for fine-grained matching.
 %%%
-%%% == Requirements ==
-%%% ```
-%%% pip install transformers torch
-%%% '''
+%%% Dependencies (transformers, torch) are installed automatically
+%%% in the managed venv on first use.
 %%%
 %%% == Configuration ==
 %%% ```
 %%% Config = #{
-%%%     venv => "/path/to/.venv",              %% Virtualenv path (recommended)
 %%%     model => "colbert-ir/colbertv2.0",     %% Model name (default, 128 dims)
+%%%     python => "python3",                   %% Python executable (default)
 %%%     timeout => 120000                      %% Timeout in ms (default)
 %%% }.
 %%% '''
-%%%
-%%% When `venv' is specified, the provider uses the venv's Python executable
-%%% and properly activates the venv environment.
 %%%
 %%% == Multi-Vector Format ==
 %%% Unlike single-vector embeddings, ColBERT produces a list of vectors:
@@ -66,10 +61,10 @@
     maxsim_score/2
 ]).
 
+-define(DEFAULT_PYTHON, "python3").
 -define(DEFAULT_MODEL, "colbert-ir/colbertv2.0").
 -define(DEFAULT_TIMEOUT, 120000).
 -define(DEFAULT_DIMENSION, 128).
--define(PROVIDER, <<"colbert">>).
 
 %% Multi-vector type: list of token vectors
 -type multi_vector() :: [[float()]].
@@ -92,51 +87,55 @@ dimension(Config) ->
 %% @doc Initialize the provider.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
+    Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
-    Venv = maps:get(venv, Config, undefined),
+
+    %% Use managed venv, auto-install deps
+    Venv = get_managed_venv(colbert),
 
     %% Validate model (warning only)
     validate_model(Model),
 
-    %% Initialize Python environment
-    PyConfig = case Venv of
-        undefined -> #{};
-        _ -> #{venv => Venv}
-    end,
+    %% Build args for python -m barrel_embed
+    Args = ["-m", "barrel_embed",
+            "--provider", "colbert",
+            "--model", Model],
 
-    case barrel_embed_py:init(PyConfig) of
-        ok ->
-            ModelBin = ensure_binary(Model),
-            case barrel_embed_py:load_model(?PROVIDER, ModelBin) of
+    Opts = [
+        {timeout, Timeout},
+        {priv_dir, get_priv_dir()},
+        {venv, Venv}
+    ],
+
+    case barrel_embed_port_server:start_link(Python, Args, Opts) of
+        {ok, Server} ->
+            case barrel_embed_port_server:info(Server, Timeout) of
                 {ok, #{dimensions := Dims}} ->
                     {ok, Config#{
+                        server => Server,
                         dimension => Dims,
-                        model => ModelBin,
-                        provider => ?PROVIDER,
-                        timeout => Timeout,
-                        initialized => true
+                        timeout => Timeout
                     }};
                 {ok, _} ->
                     %% No dimensions in response, use default
                     {ok, Config#{
+                        server => Server,
                         dimension => ?DEFAULT_DIMENSION,
-                        model => ModelBin,
-                        provider => ?PROVIDER,
-                        timeout => Timeout,
-                        initialized => true
+                        timeout => Timeout
                     }};
                 {error, Reason} ->
+                    barrel_embed_port_server:stop(Server),
                     {error, Reason}
             end;
         {error, Reason} ->
-            {error, {init_failed, Reason}}
+            {error, Reason}
     end.
 
 %% @doc Check if provider is available.
 -spec available(map()) -> boolean().
-available(#{initialized := true}) ->
-    true;
+available(#{server := Server}) ->
+    is_process_alive(Server);
 available(_Config) ->
     false.
 
@@ -176,11 +175,10 @@ embed_multi(Text, Config) ->
 
 %% @doc Generate multi-vector embeddings for multiple texts.
 -spec embed_batch_multi([binary()], map()) -> {ok, [multi_vector()]} | {error, term()}.
-embed_batch_multi(Texts, #{model := Model, provider := Provider, initialized := true}) ->
-    TextsBin = [ensure_binary(T) || T <- Texts],
-    barrel_embed_py:embed_multi(Provider, Model, TextsBin);
+embed_batch_multi(Texts, #{server := Server, timeout := Timeout}) ->
+    barrel_embed_port_server:embed_multi_batch(Server, Texts, Timeout);
 embed_batch_multi(_Texts, _Config) ->
-    {error, not_initialized}.
+    {error, server_not_initialized}.
 
 %% @doc Calculate MaxSim score between query and document multi-vectors.
 %% This is the standard ColBERT scoring function.
@@ -193,12 +191,15 @@ maxsim_score(QueryVecs, DocVecs) ->
 %% Internal Functions
 %%====================================================================
 
-ensure_binary(B) when is_binary(B) -> B;
-ensure_binary(L) when is_list(L) -> unicode:characters_to_binary(L).
+get_priv_dir() ->
+    case code:priv_dir(barrel_embed) of
+        {error, bad_name} -> "priv";
+        Dir -> Dir
+    end.
 
 %% @private
 validate_model(Model) ->
-    ModelBin = ensure_binary(Model),
+    ModelBin = to_binary(Model),
     case is_known_model(ModelBin) of
         true -> ok;
         false ->
@@ -214,6 +215,10 @@ is_known_model(<<"colbert-ir/colbertv2.0">>) -> true;
 is_known_model(<<"answerdotai/answerai-colbert-small-v1">>) -> true;
 is_known_model(<<"jinaai/jina-colbert-v2">>) -> true;
 is_known_model(_) -> false.
+
+%% @private
+to_binary(S) when is_binary(S) -> S;
+to_binary(S) when is_list(S) -> list_to_binary(S).
 
 %% @private
 %% Mean pooling of token vectors to get single vector
@@ -241,3 +246,14 @@ max_dot_product(QueryVec, DocVecs) ->
 %% @private
 dot_product(V1, V2) ->
     lists:sum(lists:zipwith(fun(A, B) -> A * B end, V1, V2)).
+
+%% @private
+%% Get managed venv path and install deps for provider
+get_managed_venv(Provider) ->
+    case application:get_env(barrel_embed, managed_venv_path) of
+        {ok, Path} ->
+            _ = barrel_embed_venv:install_deps(Provider),
+            Path;
+        undefined ->
+            undefined
+    end.

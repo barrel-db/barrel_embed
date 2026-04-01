@@ -13,12 +13,16 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    %% Ensure erlang_python is started (should already be via application deps)
-    case application:ensure_all_started(erlang_python) of
-        {ok, _} -> ok;
-        {error, {already_started, _}} -> ok;
+    %% Ensure managed venv exists
+    case barrel_embed_venv:ensure_venv() of
+        {ok, VenvPath} ->
+            error_logger:info_msg("barrel_embed: using venv at ~s~n", [VenvPath]);
         {error, Reason} ->
-            error_logger:error_msg("Failed to start erlang_python: ~p~n", [Reason])
+            error_logger:warning_msg(
+                "barrel_embed: failed to create managed venv: ~p~n"
+                "Providers will need explicit venv config~n",
+                [Reason]
+            )
     end,
     barrel_embed_sup:start_link().
 

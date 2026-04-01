@@ -6,7 +6,7 @@ Add barrel_embed to your `rebar.config`:
 
 ```erlang
 {deps, [
-    {barrel_embed, {git, "https://github.com/barrel-db/barrel_embed.git", {tag, "v1.0.0"}}}
+    {barrel_embed, {git, "https://github.com/barrel-db/barrel_embed.git", {tag, "v2.2.0"}}}
 ]}.
 ```
 
@@ -54,28 +54,25 @@ Best quality embeddings with minimal setup.
 }).
 ```
 
-### Option 3: Local Python
+### Option 3: FastEmbed (Lightweight Local)
 
-Full control with sentence-transformers.
-
-```bash
-# Setup virtualenv (recommended)
-./scripts/setup_venv.sh
-
-# Or install manually
-pip install sentence-transformers
-```
+ONNX-based embeddings without PyTorch (~100MB vs ~2GB).
 
 ```erlang
-%% Using venv (recommended)
+%% Venv created automatically, deps installed on first use
 {ok, State} = barrel_embed:init(#{
-    embedder => {local, #{
-        venv => "/absolute/path/to/.venv",
-        model => "BAAI/bge-base-en-v1.5"
+    embedder => {fastembed, #{
+        model => "BAAI/bge-small-en-v1.5"
     }}
 }).
+```
 
-%% Or using system Python
+### Option 4: Local Python (sentence-transformers)
+
+Full control with sentence-transformers (requires ~2GB for PyTorch).
+
+```erlang
+%% Venv created automatically, deps installed on first use
 {ok, State} = barrel_embed:init(#{
     embedder => {local, #{
         model => "BAAI/bge-base-en-v1.5"

@@ -1,101 +1,105 @@
 # Python Virtualenv Setup
 
-barrel_embed requires Python with specific packages. Using a virtualenv is recommended.
+barrel_embed automatically manages a Python virtualenv with required dependencies.
 
-## Quick Start
+## Automatic Setup
 
-```bash
-# Using uv (recommended - fast)
-./scripts/setup_venv.sh
+barrel_embed automatically:
 
-# Or manually
-uv venv .venv
-uv pip install -r priv/requirements.txt --python .venv/bin/python
+1. Creates a venv at `priv/.venv` on application startup
+2. Installs uvloop for async performance (required on Unix)
+3. Installs provider-specific dependencies when providers are initialized
+
+**No manual setup required.**
+
+```erlang
+%% Just use it - venv is created and configured automatically
+{ok, State} = barrel_embed:init(#{
+    embedder => {fastembed, #{}}
+}).
 ```
 
-## Usage in Erlang
+## Venv Management API
+
+```erlang
+%% Get venv path
+Path = barrel_embed:venv_path().
+
+%% Check if uvloop is installed
+barrel_embed:has_uvloop().
+%% => true
+
+%% Manually install provider deps
+barrel_embed:install_provider(fastembed).
+
+%% Recreate venv from scratch
+barrel_embed:refresh_venv().
+```
+
+## Custom Python Executable
+
+By default, barrel_embed uses `python3`. To use a different Python:
 
 ```erlang
 {ok, State} = barrel_embed:init(#{
-    embedder => {local, #{
-        venv => "/absolute/path/to/.venv"
+    embedder => {fastembed, #{
+        python => "/usr/local/bin/python3.11"
     }}
 }).
 ```
 
-## Installing uvloop (Optional Performance Boost)
+This is useful when you have multiple Python versions installed or need a specific interpreter.
 
-uvloop provides a faster asyncio event loop. It's optional but recommended on Linux/macOS:
+## Custom Venv Location
 
+Set a custom venv path via application config:
+
+```erlang
+%% In sys.config
+{barrel_embed, [
+    {venv_dir, "/opt/barrel_embed/venv"}
+]}.
+```
+
+## Provider Dependencies
+
+| Provider | Packages | Size |
+|----------|----------|------|
+| `fastembed` | fastembed | ~100MB |
+| `local` | sentence-transformers | ~2GB |
+| `splade` | transformers, torch | ~2GB |
+| `colbert` | transformers, torch | ~2GB |
+| `clip` | transformers, torch, pillow | ~2GB |
+
+Dependencies are installed on-demand when a provider is first initialized.
+
+## uvloop
+
+uvloop is required on Unix systems and installed automatically. It provides significant performance improvements for the async embedding server.
+
+Check uvloop status:
+```erlang
+barrel_embed:has_uvloop().
+%% => true (Unix) or false (Windows)
+```
+
+## Troubleshooting
+
+### Venv Creation Failed
+
+Check:
+1. Python 3 is installed: `python3 --version`
+2. venv module available: `python3 -m venv --help`
+3. Write permissions to priv directory
+
+### uvloop Installation Failed
+
+uvloop requires a C compiler. On Debian/Ubuntu:
 ```bash
-# Add uvloop to an existing venv
-uv pip install uvloop --python .venv/bin/python
-
-# Or use the full requirements file
-uv pip install -r priv/requirements-full.txt --python .venv/bin/python
+apt-get install build-essential python3-dev
 ```
 
-When uvloop is installed, barrel_embed automatically uses it. Check the logs for:
-```
-Async server ready (uvloop=True, workers=4)
-```
-
-**Note:** uvloop is not available on Windows.
-
-## Requirements Files
-
-| File | Contents |
-|------|----------|
-| `priv/requirements.txt` | Default: barrel_embed + sentence-transformers + uvloop |
-| `priv/requirements-minimal.txt` | Just barrel_embed + uvloop (no ML libs) |
-| `priv/requirements-full.txt` | All providers + uvloop |
-
-## Custom Requirements
-
-Create your own requirements file that extends the base:
-
-```
-# my-requirements.txt
--r /path/to/barrel_embed/priv/requirements.txt
-my-extra-package>=1.0.0
-```
-
-Then setup:
-
+On macOS:
 ```bash
-./scripts/setup_venv.sh .venv my-requirements.txt
+xcode-select --install
 ```
-
-## For Dependent Applications
-
-If your app (e.g., barrel_vectordb) uses barrel_embed as a dependency:
-
-1. Create `priv/requirements.txt` in your app:
-   ```
-   -r deps/barrel_embed/priv/requirements.txt
-   your-extra-packages
-   ```
-
-2. Setup venv in your app:
-   ```bash
-   uv venv priv/.venv
-   uv pip install -r priv/requirements.txt --python priv/.venv/bin/python
-   ```
-
-3. Pass venv to barrel_embed:
-   ```erlang
-   VenvPath = filename:join(code:priv_dir(my_app), ".venv"),
-   barrel_embed:init(#{
-       embedder => {local, #{venv => VenvPath}}
-   }).
-   ```
-
-## How Venv Activation Works
-
-When you specify `venv`, barrel_embed sets these environment variables in the Python port:
-
-- `VIRTUAL_ENV=/path/to/.venv`
-- `PATH=/path/to/.venv/bin:$PATH`
-- `PYTHONPATH=<priv_dir>`
-
-This is equivalent to running `source .venv/bin/activate` before starting Python.

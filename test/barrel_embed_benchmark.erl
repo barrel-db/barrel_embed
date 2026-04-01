@@ -1,5 +1,5 @@
 %%%-------------------------------------------------------------------
-%%% @doc Benchmark module for erlang_python NIF backend performance
+%%% @doc Benchmark module for port-based backend performance
 %%%
 %%% == Usage ==
 %%% ```
@@ -22,11 +22,11 @@
 -export([
     run/0,
     run/1,
-    benchmark/3
+    benchmark/4
 ]).
 
 -define(DEFAULT_COUNT, 100).
--define(DEFAULT_MODEL, <<"BAAI/bge-small-en-v1.5">>).
+-define(DEFAULT_MODEL, "BAAI/bge-small-en-v1.5").
 -define(DEFAULT_PROVIDER, fastembed).
 -define(SINGLE_TEXT_SAMPLES, 50).
 
@@ -55,7 +55,7 @@ run(Opts) ->
             Provider = maps:get(provider, Opts, ?DEFAULT_PROVIDER),
 
             io:format("~n========================================~n"),
-            io:format("  Benchmark: erlang_python NIF Backend~n"),
+            io:format("  Benchmark: Port-based Backend~n"),
             io:format("========================================~n"),
             io:format("~nProvider: ~p~n", [Provider]),
             io:format("Model: ~s~n", [Model]),
@@ -65,43 +65,48 @@ run(Opts) ->
             Texts = generate_texts(Count),
 
             io:format("~n--- Results ---~n"),
-            Results = benchmark(Texts, Model, Venv),
-            print_results(Results),
+            Results = benchmark(Provider, Texts, Model, Venv),
+            print_results(Results, Count),
 
             ok
     end.
 
-%% @doc Benchmark NIF backend.
--spec benchmark([binary()], binary(), string() | binary()) -> map().
-benchmark(Texts, Model, Venv) ->
-    Provider = <<"fastembed">>,
+%% @doc Benchmark port-based backend.
+-spec benchmark(atom(), [binary()], string(), string() | binary()) -> map().
+benchmark(Provider, Texts, Model, Venv) ->
+    ProviderMod = provider_module(Provider),
+    Config = #{
+        venv => Venv,
+        model => Model
+    },
 
-    %% Cold start (initialize Python + load model)
+    %% Cold start (start port + load model)
     io:format("Measuring cold start...~n"),
     {ColdTime, InitResult} = timer:tc(fun() ->
-        case barrel_embed_py:init(#{venv => Venv}) of
-            ok ->
-                barrel_embed_py:load_model(Provider, Model);
-            Error ->
-                Error
-        end
+        ProviderMod:init(Config)
     end),
 
     case InitResult of
-        {ok, _Info} ->
+        {ok, InitConfig} ->
             %% Warm single-text latency
             io:format("Measuring single-text latency (~p samples)...~n", [?SINGLE_TEXT_SAMPLES]),
-            SingleTimes = measure_single_latency(Provider, Model, Texts, ?SINGLE_TEXT_SAMPLES),
+            SingleTimes = measure_single_latency(ProviderMod, InitConfig, Texts, ?SINGLE_TEXT_SAMPLES),
 
             %% Batch throughput
             io:format("Measuring batch throughput...~n"),
             {BatchTime, BatchResult} = timer:tc(fun() ->
-                barrel_embed_py:embed(Provider, Model, Texts)
+                ProviderMod:embed_batch(Texts, InitConfig)
             end),
 
             BatchOk = case BatchResult of
                 {ok, _} -> true;
                 _ -> false
+            end,
+
+            %% Stop the server
+            case maps:get(server, InitConfig, undefined) of
+                undefined -> ok;
+                Server -> barrel_embed_port_server:stop(Server)
             end,
 
             #{
@@ -123,6 +128,12 @@ benchmark(Texts, Model, Venv) ->
 %% Internal Functions
 %%====================================================================
 
+provider_module(local) -> barrel_embed_local;
+provider_module(fastembed) -> barrel_embed_fastembed;
+provider_module(splade) -> barrel_embed_splade;
+provider_module(colbert) -> barrel_embed_colbert;
+provider_module(clip) -> barrel_embed_clip.
+
 generate_texts(Count) ->
     Sentences = [
         <<"The quick brown fox jumps over the lazy dog.">>,
@@ -139,11 +150,11 @@ generate_texts(Count) ->
     NumSentences = length(Sentences),
     [lists:nth((I rem NumSentences) + 1, Sentences) || I <- lists:seq(1, Count)].
 
-measure_single_latency(Provider, Model, Texts, Samples) ->
+measure_single_latency(ProviderMod, Config, Texts, Samples) ->
     SampleTexts = lists:sublist(Texts, min(Samples, length(Texts))),
     [begin
         {T, _} = timer:tc(fun() ->
-            barrel_embed_py:embed(Provider, Model, [Text])
+            ProviderMod:embed(Text, Config)
         end),
         T
     end || Text <- SampleTexts].
@@ -164,15 +175,15 @@ percentile(List, P) when length(List) > 0 ->
 percentile(_, _) ->
     0.
 
-print_results(#{error := Reason}) ->
+print_results(#{error := Reason}, _Count) ->
     io:format("Error: ~p~n", [Reason]);
-print_results(Results) ->
+print_results(Results, Count) ->
     io:format("~n  Cold start:       ~.1f ms~n", [maps:get(cold_start_ms, Results)]),
     io:format("  Warm latency:~n"),
     io:format("    p50:            ~.2f ms~n", [maps:get(warm_p50_ms, Results)]),
     io:format("    p95:            ~.2f ms~n", [maps:get(warm_p95_ms, Results)]),
     io:format("    p99:            ~.2f ms~n", [maps:get(warm_p99_ms, Results)]),
     io:format("    mean:           ~.2f ms~n", [maps:get(warm_mean_ms, Results)]),
-    io:format("  Batch (~p texts):~n", [100]),
+    io:format("  Batch (~p texts):~n", [Count]),
     io:format("    Total time:     ~.1f ms~n", [maps:get(batch_time_ms, Results)]),
     io:format("    Throughput:     ~.1f texts/sec~n", [maps:get(batch_throughput, Results)]).

@@ -1,13 +1,12 @@
 {application, barrel_embed,
  [{description, "Lightweight embedding generation for Erlang"},
-  {vsn, "2.0.1"},
+  {vsn, "2.2.0"},
   {registered, []},
   {mod, {barrel_embed_app, []}},
   {applications,
    [kernel,
     stdlib,
-    hackney,
-    erlang_python
+    hackney
    ]},
   {env,[]},
   {modules, []},

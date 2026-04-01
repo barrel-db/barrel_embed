@@ -1,25 +1,20 @@
 %%%-------------------------------------------------------------------
 %%% @doc FastEmbed embedding provider
 %%%
-%%% Uses erlang_python with FastEmbed (ONNX-based) for lightweight, fast embeddings.
+%%% Uses FastEmbed (ONNX-based) for lightweight, fast embeddings.
 %%% Lighter alternative to sentence-transformers with similar quality.
 %%%
-%%% == Requirements ==
-%%% ```
-%%% pip install fastembed
-%%% '''
+%%% Dependencies (fastembed) are installed automatically
+%%% in the managed venv on first use.
 %%%
 %%% == Configuration ==
 %%% ```
 %%% Config = #{
-%%%     venv => "/path/to/.venv",                %% Virtualenv path (recommended)
 %%%     model => "BAAI/bge-small-en-v1.5",       %% Model name (default, 384 dims)
+%%%     python => "python3",                     %% Python executable (default)
 %%%     timeout => 120000                        %% Timeout in ms (default)
 %%% }.
 %%% '''
-%%%
-%%% When `venv' is specified, the provider uses the venv's Python executable
-%%% and properly activates the venv environment.
 %%%
 %%% == Advantages over sentence-transformers ==
 %%% - Smaller install size (~100MB vs ~2GB+)
@@ -42,10 +37,10 @@
     available/1
 ]).
 
+-define(DEFAULT_PYTHON, "python3").
 -define(DEFAULT_MODEL, "BAAI/bge-small-en-v1.5").
 -define(DEFAULT_TIMEOUT, 120000).
 -define(DEFAULT_DIMENSION, 384).
--define(PROVIDER, <<"fastembed">>).
 
 %%====================================================================
 %% Behaviour Callbacks
@@ -61,55 +56,51 @@ dimension(Config) ->
     maps:get(dimension, Config, ?DEFAULT_DIMENSION).
 
 %% @doc Initialize the provider.
-%% Initializes Python environment and loads the model.
+%% Starts the Python port server.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
+    Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
-    Venv = maps:get(venv, Config, undefined),
+
+    %% Use managed venv, auto-install deps
+    Venv = get_managed_venv(fastembed),
 
     %% Validate model (warning only)
     validate_model(Model),
 
-    %% Initialize Python environment
-    PyConfig = case Venv of
-        undefined -> #{};
-        _ -> #{venv => Venv}
-    end,
+    %% Build args for python -m barrel_embed
+    Args = ["-m", "barrel_embed",
+            "--provider", "fastembed",
+            "--model", Model],
 
-    case barrel_embed_py:init(PyConfig) of
-        ok ->
-            ModelBin = ensure_binary(Model),
-            case barrel_embed_py:load_model(?PROVIDER, ModelBin) of
+    Opts = [
+        {timeout, Timeout},
+        {priv_dir, get_priv_dir()},
+        {venv, Venv}
+    ],
+
+    case barrel_embed_port_server:start_link(Python, Args, Opts) of
+        {ok, Server} ->
+            case barrel_embed_port_server:info(Server, Timeout) of
                 {ok, #{dimensions := Dims}} ->
                     {ok, Config#{
+                        server => Server,
                         dimension => Dims,
-                        model => ModelBin,
-                        provider => ?PROVIDER,
-                        timeout => Timeout,
-                        initialized => true
-                    }};
-                {ok, Info} ->
-                    %% No dimensions in response, use default
-                    Dims = maps:get(dimensions, Info, ?DEFAULT_DIMENSION),
-                    {ok, Config#{
-                        dimension => Dims,
-                        model => ModelBin,
-                        provider => ?PROVIDER,
-                        timeout => Timeout,
-                        initialized => true
+                        timeout => Timeout
                     }};
                 {error, Reason} ->
+                    barrel_embed_port_server:stop(Server),
                     {error, Reason}
             end;
         {error, Reason} ->
-            {error, {init_failed, Reason}}
+            {error, Reason}
     end.
 
 %% @doc Check if provider is available.
 -spec available(map()) -> boolean().
-available(#{initialized := true}) ->
-    true;
+available(#{server := Server}) ->
+    is_process_alive(Server);
 available(_Config) ->
     false.
 
@@ -123,23 +114,25 @@ embed(Text, Config) ->
 
 %% @doc Generate embeddings for multiple texts.
 -spec embed_batch([binary()], map()) -> {ok, [[float()]]} | {error, term()}.
-embed_batch(Texts, #{model := Model, provider := Provider, initialized := true}) ->
-    TextsBin = [ensure_binary(T) || T <- Texts],
-    barrel_embed_py:embed(Provider, Model, TextsBin);
+embed_batch(Texts, #{server := Server, timeout := Timeout}) ->
+    barrel_embed_port_server:embed_batch(Server, Texts, Timeout);
 embed_batch(_Texts, _Config) ->
-    {error, not_initialized}.
+    {error, server_not_initialized}.
 
 %%====================================================================
 %% Internal Functions
 %%====================================================================
 
-ensure_binary(B) when is_binary(B) -> B;
-ensure_binary(L) when is_list(L) -> unicode:characters_to_binary(L).
+get_priv_dir() ->
+    case code:priv_dir(barrel_embed) of
+        {error, bad_name} -> "priv";
+        Dir -> Dir
+    end.
 
 %% @private
 %% Validate model (warning only)
 validate_model(Model) ->
-    ModelBin = ensure_binary(Model),
+    ModelBin = to_binary(Model),
     %% Just log a warning for unknown models
     case is_known_model(ModelBin) of
         true ->
@@ -160,3 +153,18 @@ is_known_model(<<"BAAI/bge-large-en-v1.5">>) -> true;
 is_known_model(<<"sentence-transformers/all-MiniLM-L6-v2">>) -> true;
 is_known_model(<<"nomic-ai/nomic-embed-text-v1.5">>) -> true;
 is_known_model(_) -> false.
+
+%% @private
+to_binary(S) when is_binary(S) -> S;
+to_binary(S) when is_list(S) -> list_to_binary(S).
+
+%% @private
+%% Get managed venv path and install deps for provider
+get_managed_venv(Provider) ->
+    case application:get_env(barrel_embed, managed_venv_path) of
+        {ok, Path} ->
+            _ = barrel_embed_venv:install_deps(Provider),
+            Path;
+        undefined ->
+            undefined
+    end.
