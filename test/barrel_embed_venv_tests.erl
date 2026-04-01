@@ -51,7 +51,8 @@ barrel_embed_api_test_() ->
      [
        {"barrel_embed:venv_path returns path", fun test_barrel_embed_venv_path/0},
        {timeout, 60, {"barrel_embed:refresh_venv delegates to venv module", fun test_barrel_embed_refresh_venv/0}},
-       {timeout, 30, {"barrel_embed:install_provider delegates to venv module", fun test_barrel_embed_install_provider/0}}
+       {timeout, 30, {"barrel_embed:install_provider delegates to venv module", fun test_barrel_embed_install_provider/0}},
+       {timeout, 30, {"has_uvloop returns true after venv creation", fun test_has_uvloop/0}}
      ]
     }.
 
@@ -225,6 +226,26 @@ test_barrel_embed_install_provider() ->
             ?assertEqual(ok, barrel_embed:install_provider(unknown_provider));
         {error, _} ->
             ?debugMsg("Skipping test_barrel_embed_install_provider: Python not found"),
+            ok
+    end.
+
+test_has_uvloop() ->
+    case find_python() of
+        {ok, _} ->
+            %% Before venv creation, should return false
+            ?assertEqual(false, barrel_embed_venv:has_uvloop()),
+            %% Create venv (which installs uvloop on unix)
+            {ok, _} = barrel_embed_venv:create_venv(),
+            %% On unix, should return true; on windows, false
+            case os:type() of
+                {unix, _} ->
+                    ?assertEqual(true, barrel_embed_venv:has_uvloop()),
+                    ?assertEqual(true, barrel_embed:has_uvloop());
+                _ ->
+                    ?assertEqual(false, barrel_embed_venv:has_uvloop())
+            end;
+        {error, _} ->
+            ?debugMsg("Skipping test_has_uvloop: Python not found"),
             ok
     end.
 

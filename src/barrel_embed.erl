@@ -73,7 +73,8 @@
 -export([
     refresh_venv/0,
     install_provider/1,
-    venv_path/0
+    venv_path/0,
+    has_uvloop/0
 ]).
 
 %% Types
@@ -323,3 +324,8 @@ install_provider(Provider) ->
 -spec venv_path() -> string().
 venv_path() ->
     barrel_embed_venv:venv_path().
+
+%% @doc Check if uvloop is installed in the managed venv.
+-spec has_uvloop() -> boolean().
+has_uvloop() ->
+    barrel_embed_venv:has_uvloop().

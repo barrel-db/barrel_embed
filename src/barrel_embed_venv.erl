@@ -25,7 +25,8 @@
     install_deps/1,
     refresh/0,
     venv_path/0,
-    is_valid/0
+    is_valid/0,
+    has_uvloop/0
 ]).
 
 -define(DEFAULT_VENV_SUBDIR, ".venv").
@@ -89,6 +90,23 @@ create_venv() ->
 -spec is_valid() -> boolean().
 is_valid() ->
     is_valid_venv(venv_path()).
+
+%% @doc Check if uvloop is installed in the managed venv.
+-spec has_uvloop() -> boolean().
+has_uvloop() ->
+    Path = venv_path(),
+    case is_valid_venv(Path) of
+        true ->
+            Python = venv_python(Path),
+            Cmd = Python ++ " -c \"import uvloop; print('ok')\"",
+            case run_cmd(Cmd) of
+                {ok, "ok\n"} -> true;
+                {ok, "ok"} -> true;
+                _ -> false
+            end;
+        false ->
+            false
+    end.
 
 %% @doc Install dependencies for a provider.
 %% Automatically installs required packages for the given provider.
@@ -190,15 +208,18 @@ install_base_deps(VenvPath) ->
     case os:type() of
         {unix, _} ->
             case pip_install(VenvPath, ["uvloop"]) of
-                ok -> {ok, VenvPath};
-                {error, _} ->
-                    %% uvloop is optional, don't fail
-                    error_logger:warning_msg(
-                        "Failed to install uvloop, continuing without it~n"
+                ok ->
+                    error_logger:info_msg("barrel_embed: uvloop installed~n"),
+                    {ok, VenvPath};
+                {error, Reason} ->
+                    error_logger:error_msg(
+                        "barrel_embed: failed to install uvloop: ~p~n",
+                        [Reason]
                     ),
-                    {ok, VenvPath}
+                    {error, {uvloop_install_failed, Reason}}
             end;
         _ ->
+            %% uvloop not available on Windows
             {ok, VenvPath}
     end.
 
