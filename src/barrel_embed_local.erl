@@ -1,7 +1,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc Local Python embedding provider
 %%%
-%%% Uses erlang_python with sentence-transformers for CPU-based embeddings.
+%%% Uses a Python port with sentence-transformers for CPU-based embeddings.
 %%% No GPU required, runs entirely on CPU.
 %%%
 %%% == Requirements ==
@@ -13,6 +13,7 @@
 %%% ```
 %%% Config = #{
 %%%     venv => "/path/to/.venv",                %% Virtualenv path (recommended)
+%%%     python => "python3",                     %% Python executable (if no venv)
 %%%     model => "BAAI/bge-base-en-v1.5",        %% Model name (default, 768 dims)
 %%%     timeout => 120000                        %% Timeout in ms (default)
 %%% }.
@@ -48,10 +49,10 @@
     available/1
 ]).
 
+-define(DEFAULT_PYTHON, "python3").
 -define(DEFAULT_MODEL, "BAAI/bge-base-en-v1.5").
 -define(DEFAULT_TIMEOUT, 120000).
 -define(DEFAULT_DIMENSION, 768).
--define(PROVIDER, <<"sentence_transformers">>).
 
 %%====================================================================
 %% Behaviour Callbacks
@@ -67,52 +68,46 @@ dimension(Config) ->
     maps:get(dimension, Config, ?DEFAULT_DIMENSION).
 
 %% @doc Initialize the provider.
-%% Initializes Python environment and loads the model.
+%% Starts the Python port server.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
+    Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
     Venv = maps:get(venv, Config, undefined),
 
-    %% Initialize Python environment
-    PyConfig = case Venv of
-        undefined -> #{};
-        _ -> #{venv => Venv}
-    end,
+    %% Build args for python -m barrel_embed
+    Args = ["-m", "barrel_embed",
+            "--provider", "sentence_transformers",
+            "--model", Model],
 
-    case barrel_embed_py:init(PyConfig) of
-        ok ->
-            ModelBin = ensure_binary(Model),
-            case barrel_embed_py:load_model(?PROVIDER, ModelBin) of
+    Opts = [
+        {timeout, Timeout},
+        {priv_dir, get_priv_dir()},
+        {venv, Venv}
+    ],
+
+    case barrel_embed_port_server:start_link(Python, Args, Opts) of
+        {ok, Server} ->
+            case barrel_embed_port_server:info(Server, Timeout) of
                 {ok, #{dimensions := Dims}} ->
                     {ok, Config#{
+                        server => Server,
                         dimension => Dims,
-                        model => ModelBin,
-                        provider => ?PROVIDER,
-                        timeout => Timeout,
-                        initialized => true
-                    }};
-                {ok, Info} ->
-                    %% No dimensions in response, use default
-                    Dims = maps:get(dimensions, Info, ?DEFAULT_DIMENSION),
-                    {ok, Config#{
-                        dimension => Dims,
-                        model => ModelBin,
-                        provider => ?PROVIDER,
-                        timeout => Timeout,
-                        initialized => true
+                        timeout => Timeout
                     }};
                 {error, Reason} ->
+                    barrel_embed_port_server:stop(Server),
                     {error, Reason}
             end;
         {error, Reason} ->
-            {error, {init_failed, Reason}}
+            {error, Reason}
     end.
 
 %% @doc Check if provider is available.
 -spec available(map()) -> boolean().
-available(#{initialized := true}) ->
-    true;
+available(#{server := Server}) ->
+    is_process_alive(Server);
 available(_Config) ->
     false.
 
@@ -134,15 +129,17 @@ embed(Text, Config) ->
 
 %% @doc Generate embeddings for multiple texts.
 -spec embed_batch([binary()], map()) -> {ok, [[float()]]} | {error, term()}.
-embed_batch(Texts, #{model := Model, provider := Provider, initialized := true}) ->
-    TextsBin = [ensure_binary(T) || T <- Texts],
-    barrel_embed_py:embed(Provider, Model, TextsBin);
+embed_batch(Texts, #{server := Server, timeout := Timeout}) ->
+    barrel_embed_port_server:embed_batch(Server, Texts, Timeout);
 embed_batch(_Texts, _Config) ->
-    {error, not_initialized}.
+    {error, server_not_initialized}.
 
 %%====================================================================
 %% Internal Functions
 %%====================================================================
 
-ensure_binary(B) when is_binary(B) -> B;
-ensure_binary(L) when is_list(L) -> unicode:characters_to_binary(L).
+get_priv_dir() ->
+    case code:priv_dir(barrel_embed) of
+        {error, bad_name} -> "priv";
+        Dir -> Dir
+    end.

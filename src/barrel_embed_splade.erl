@@ -1,9 +1,8 @@
 %%%-------------------------------------------------------------------
 %%% @doc SPLADE sparse embedding provider
 %%%
-%%% Uses erlang_python with SPLADE (Sparse Lexical and Expansion) models for
-%%% neural sparse embeddings. Produces sparse vectors suitable for inverted
-%%% index search.
+%%% Uses SPLADE (Sparse Lexical and Expansion) models for neural sparse
+%%% embeddings. Produces sparse vectors suitable for inverted index search.
 %%%
 %%% == Requirements ==
 %%% ```
@@ -14,6 +13,7 @@
 %%% ```
 %%% Config = #{
 %%%     venv => "/path/to/.venv",                %% Virtualenv path (recommended)
+%%%     python => "python3",                     %% Python executable (if no venv)
 %%%     model => "prithivida/Splade_PP_en_v1",   %% Model name (default)
 %%%     timeout => 120000                        %% Timeout in ms (default)
 %%% }.
@@ -59,10 +59,10 @@
     embed_batch_sparse/2
 ]).
 
+-define(DEFAULT_PYTHON, "python3").
 -define(DEFAULT_MODEL, "prithivida/Splade_PP_en_v1").
 -define(DEFAULT_TIMEOUT, 120000).
 -define(DEFAULT_VOCAB_SIZE, 30522).
--define(PROVIDER, <<"splade">>).
 
 %% Sparse vector type
 -type sparse_vector() :: #{
@@ -89,6 +89,7 @@ dimension(Config) ->
 %% @doc Initialize the provider.
 -spec init(map()) -> {ok, map()} | {error, term()}.
 init(Config) ->
+    Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
     Venv = maps:get(venv, Config, undefined),
@@ -96,44 +97,45 @@ init(Config) ->
     %% Validate model (warning only)
     validate_model(Model),
 
-    %% Initialize Python environment
-    PyConfig = case Venv of
-        undefined -> #{};
-        _ -> #{venv => Venv}
-    end,
+    %% Build args for python -m barrel_embed
+    Args = ["-m", "barrel_embed",
+            "--provider", "splade",
+            "--model", Model],
 
-    case barrel_embed_py:init(PyConfig) of
-        ok ->
-            ModelBin = ensure_binary(Model),
-            case barrel_embed_py:load_model(?PROVIDER, ModelBin) of
+    Opts = [
+        {timeout, Timeout},
+        {priv_dir, get_priv_dir()},
+        {venv, Venv}
+    ],
+
+    case barrel_embed_port_server:start_link(Python, Args, Opts) of
+        {ok, Server} ->
+            case barrel_embed_port_server:info(Server, Timeout) of
                 {ok, #{vocab_size := VocabSize}} ->
                     {ok, Config#{
+                        server => Server,
                         vocab_size => VocabSize,
-                        model => ModelBin,
-                        provider => ?PROVIDER,
-                        timeout => Timeout,
-                        initialized => true
+                        timeout => Timeout
                     }};
                 {ok, _} ->
                     %% No vocab_size in response, use default
                     {ok, Config#{
+                        server => Server,
                         vocab_size => ?DEFAULT_VOCAB_SIZE,
-                        model => ModelBin,
-                        provider => ?PROVIDER,
-                        timeout => Timeout,
-                        initialized => true
+                        timeout => Timeout
                     }};
                 {error, Reason} ->
+                    barrel_embed_port_server:stop(Server),
                     {error, Reason}
             end;
         {error, Reason} ->
-            {error, {init_failed, Reason}}
+            {error, Reason}
     end.
 
 %% @doc Check if provider is available.
 -spec available(map()) -> boolean().
-available(#{initialized := true}) ->
-    true;
+available(#{server := Server}) ->
+    is_process_alive(Server);
 available(_Config) ->
     false.
 
@@ -174,22 +176,30 @@ embed_sparse(Text, Config) ->
 
 %% @doc Generate sparse embeddings for multiple texts.
 -spec embed_batch_sparse([binary()], map()) -> {ok, [sparse_vector()]} | {error, term()}.
-embed_batch_sparse(Texts, #{model := Model, provider := Provider, initialized := true}) ->
-    TextsBin = [ensure_binary(T) || T <- Texts],
-    barrel_embed_py:embed_sparse(Provider, Model, TextsBin);
+embed_batch_sparse(Texts, #{server := Server, timeout := Timeout}) ->
+    case barrel_embed_port_server:embed_sparse_batch(Server, Texts, Timeout) of
+        {ok, Embeddings} ->
+            SparseVecs = [parse_sparse_vec(E) || E <- Embeddings],
+            {ok, SparseVecs};
+        {error, _} = Error ->
+            Error
+    end;
 embed_batch_sparse(_Texts, _Config) ->
-    {error, not_initialized}.
+    {error, server_not_initialized}.
 
 %%====================================================================
 %% Internal Functions
 %%====================================================================
 
-ensure_binary(B) when is_binary(B) -> B;
-ensure_binary(L) when is_list(L) -> unicode:characters_to_binary(L).
+get_priv_dir() ->
+    case code:priv_dir(barrel_embed) of
+        {error, bad_name} -> "priv";
+        Dir -> Dir
+    end.
 
 %% @private
 validate_model(Model) ->
-    ModelBin = ensure_binary(Model),
+    ModelBin = to_binary(Model),
     case is_known_model(ModelBin) of
         true -> ok;
         false ->
@@ -204,6 +214,16 @@ validate_model(Model) ->
 is_known_model(<<"prithivida/Splade_PP_en_v1">>) -> true;
 is_known_model(<<"naver/splade-cocondenser-ensembledistil">>) -> true;
 is_known_model(_) -> false.
+
+%% @private
+to_binary(S) when is_binary(S) -> S;
+to_binary(S) when is_list(S) -> list_to_binary(S).
+
+%% @private
+parse_sparse_vec(#{<<"indices">> := Indices, <<"values">> := Values}) ->
+    #{indices => Indices, values => Values};
+parse_sparse_vec(#{indices := _, values := _} = Vec) ->
+    Vec.
 
 %% @private
 %% Convert sparse vector to dense (for compatibility with dense search)
