@@ -36,6 +36,20 @@ barrel_embed:install_provider(fastembed).
 barrel_embed:refresh_venv().
 ```
 
+## Custom Python Executable
+
+By default, barrel_embed uses `python3`. To use a different Python:
+
+```erlang
+{ok, State} = barrel_embed:init(#{
+    embedder => {fastembed, #{
+        python => "/usr/local/bin/python3.11"
+    }}
+}).
+```
+
+This is useful when you have multiple Python versions installed or need a specific interpreter.
+
 ## Custom Venv Location
 
 Set a custom venv path via application config:

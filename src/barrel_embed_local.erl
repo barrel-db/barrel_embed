@@ -11,6 +11,7 @@
 %%% ```
 %%% Config = #{
 %%%     model => "BAAI/bge-base-en-v1.5",        %% Model name (default, 768 dims)
+%%%     python => "python3",                     %% Python executable (default)
 %%%     timeout => 120000                        %% Timeout in ms (default)
 %%% }.
 %%% '''

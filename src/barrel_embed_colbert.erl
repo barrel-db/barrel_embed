@@ -11,6 +11,7 @@
 %%% ```
 %%% Config = #{
 %%%     model => "colbert-ir/colbertv2.0",     %% Model name (default, 128 dims)
+%%%     python => "python3",                   %% Python executable (default)
 %%%     timeout => 120000                      %% Timeout in ms (default)
 %%% }.
 %%% '''

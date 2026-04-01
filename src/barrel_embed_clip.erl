@@ -12,6 +12,7 @@
 %%% ```
 %%% Config = #{
 %%%     model => "openai/clip-vit-base-patch32",   %% Model name (default)
+%%%     python => "python3",                       %% Python executable (default)
 %%%     timeout => 120000                          %% Timeout in ms (default)
 %%% }.
 %%% '''

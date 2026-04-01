@@ -11,6 +11,7 @@
 %%% ```
 %%% Config = #{
 %%%     model => "prithivida/Splade_PP_en_v1",   %% Model name (default)
+%%%     python => "python3",                     %% Python executable (default)
 %%%     timeout => 120000                        %% Timeout in ms (default)
 %%% }.
 %%% '''
