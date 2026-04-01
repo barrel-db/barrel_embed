@@ -92,7 +92,7 @@ init(Config) ->
     Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
-    Venv = maps:get(venv, Config, undefined),
+    Venv = resolve_venv(maps:get(venv, Config, undefined)),
 
     %% Validate model (warning only)
     validate_model(Model),
@@ -209,3 +209,17 @@ is_known_model(_) -> false.
 %% @private
 to_binary(S) when is_binary(S) -> S;
 to_binary(S) when is_list(S) -> list_to_binary(S).
+
+%% @private
+%% Resolve venv - use managed venv if none specified
+resolve_venv(undefined) ->
+    case application:get_env(barrel_embed, managed_venv_path) of
+        {ok, Path} ->
+            %% Auto-install deps for this provider
+            _ = barrel_embed_venv:install_deps(clip),
+            Path;
+        undefined ->
+            undefined
+    end;
+resolve_venv(Venv) ->
+    Venv.

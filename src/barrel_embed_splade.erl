@@ -92,7 +92,7 @@ init(Config) ->
     Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
-    Venv = maps:get(venv, Config, undefined),
+    Venv = resolve_venv(maps:get(venv, Config, undefined)),
 
     %% Validate model (warning only)
     validate_model(Model),
@@ -239,3 +239,17 @@ sparse_to_dense(#{indices := Indices, values := Values}, Dim) ->
         lists:zip(Indices, Values)
     ),
     array:to_list(Dense1).
+
+%% @private
+%% Resolve venv - use managed venv if none specified
+resolve_venv(undefined) ->
+    case application:get_env(barrel_embed, managed_venv_path) of
+        {ok, Path} ->
+            %% Auto-install deps for this provider
+            _ = barrel_embed_venv:install_deps(splade),
+            Path;
+        undefined ->
+            undefined
+    end;
+resolve_venv(Venv) ->
+    Venv.

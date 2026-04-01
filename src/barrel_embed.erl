@@ -69,6 +69,13 @@
     info/1
 ]).
 
+%% Venv management
+-export([
+    refresh_venv/0,
+    install_provider/1,
+    venv_path/0
+]).
+
 %% Types
 -type provider() :: {atom(), map()}.
 -type provider_chain() :: [provider()] | provider().
@@ -295,3 +302,24 @@ safe_split(N, List) when length(List) =< N ->
     {List, []};
 safe_split(N, List) ->
     lists:split(N, List).
+
+%%====================================================================
+%% Venv Management Functions
+%%====================================================================
+
+%% @doc Refresh the managed venv.
+%% Deletes and recreates the venv with base dependencies.
+-spec refresh_venv() -> {ok, string()} | {error, term()}.
+refresh_venv() ->
+    barrel_embed_venv:refresh().
+
+%% @doc Install dependencies for a specific provider.
+%% @param Provider The provider atom (fastembed, local, splade, colbert, clip)
+-spec install_provider(atom()) -> ok | {error, term()}.
+install_provider(Provider) ->
+    barrel_embed_venv:install_deps(Provider).
+
+%% @doc Get the managed venv path.
+-spec venv_path() -> string().
+venv_path() ->
+    barrel_embed_venv:venv_path().

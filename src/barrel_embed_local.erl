@@ -74,7 +74,7 @@ init(Config) ->
     Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
-    Venv = maps:get(venv, Config, undefined),
+    Venv = resolve_venv(maps:get(venv, Config, undefined)),
 
     %% Build args for python -m barrel_embed
     Args = ["-m", "barrel_embed",
@@ -143,3 +143,17 @@ get_priv_dir() ->
         {error, bad_name} -> "priv";
         Dir -> Dir
     end.
+
+%% @private
+%% Resolve venv - use managed venv if none specified
+resolve_venv(undefined) ->
+    case application:get_env(barrel_embed, managed_venv_path) of
+        {ok, Path} ->
+            %% Auto-install deps for this provider
+            _ = barrel_embed_venv:install_deps(local),
+            Path;
+        undefined ->
+            undefined
+    end;
+resolve_venv(Venv) ->
+    Venv.
