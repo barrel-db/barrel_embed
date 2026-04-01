@@ -1,5 +1,8 @@
 %%%-------------------------------------------------------------------
-%%% @doc End-to-end tests for barrel_embed_preload module
+%%% @doc Tests for barrel_embed_preload module
+%%%
+%%% Note: Preload now only sets up paths and venv, NOT model loading.
+%%% Models use thread-local storage and are lazily loaded per executor.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(barrel_embed_preload_tests).
@@ -17,10 +20,10 @@ preload_test_() ->
      [
        {"generate_preload_code without venv", fun test_generate_code_no_venv/0},
        {"generate_preload_code with venv", fun test_generate_code_with_venv/0},
-       {"generate_preload_code with multiple models", fun test_generate_code_multiple_models/0},
+       {"generate_preload_code ignores models (thread-local)", fun test_generate_code_ignores_models/0},
        {"generate_preload_code escapes paths", fun test_generate_code_escapes_paths/0},
        {"setup with empty models sets path only", fun test_setup_empty_models/0},
-       {"setup with models sets full preload", fun test_setup_with_models/0},
+       {"setup with models sets path only (no model loading)", fun test_setup_with_models/0},
        {"setup from app env", fun test_setup_from_app_env/0},
        {"clear removes preload", fun test_clear/0},
        {"setup skips if preload exists", fun test_setup_skips_existing/0}
@@ -76,10 +79,8 @@ test_generate_code_no_venv() ->
     %% Should have path setup
     ?assert(binary:match(Code, <<"import sys">>) =/= nomatch),
     ?assert(binary:match(Code, <<"/test/priv">>) =/= nomatch),
-    %% Should have import
-    ?assert(binary:match(Code, <<"from barrel_embed.nif_api import load_model">>) =/= nomatch),
-    %% Should have load call
-    ?assert(binary:match(Code, <<"load_model('fastembed', 'model1')">>) =/= nomatch),
+    %% Should NOT have load_model (models use thread-local lazy loading)
+    ?assertEqual(nomatch, binary:match(Code, <<"load_model">>)),
     %% Should NOT have venv activation
     ?assertEqual(nomatch, binary:match(Code, <<"site-packages">>)).
 
@@ -94,10 +95,12 @@ test_generate_code_with_venv() ->
     ?assert(binary:match(Code, <<"site-packages">>) =/= nomatch),
     %% Should have path setup
     ?assert(binary:match(Code, <<"/test/priv">>) =/= nomatch),
-    %% Should have load call
-    ?assert(binary:match(Code, <<"load_model('fastembed', 'model1')">>) =/= nomatch).
+    %% Should NOT have load_model (models use thread-local lazy loading)
+    ?assertEqual(nomatch, binary:match(Code, <<"load_model">>)).
 
-test_generate_code_multiple_models() ->
+test_generate_code_ignores_models() ->
+    %% Models are ignored because they use thread-local storage
+    %% and are lazily loaded per executor thread
     Code = barrel_embed_preload:generate_preload_code(
         [
             {sentence_transformers, <<"BAAI/bge-base-en-v1.5">>},
@@ -106,9 +109,10 @@ test_generate_code_multiple_models() ->
         undefined,
         <<"/test/priv">>
     ),
-    %% Should have both load calls
-    ?assert(binary:match(Code, <<"load_model('sentence_transformers', 'BAAI/bge-base-en-v1.5')">>) =/= nomatch),
-    ?assert(binary:match(Code, <<"load_model('fastembed', 'BAAI/bge-small-en-v1.5')">>) =/= nomatch).
+    %% Should have path setup only, no model loading
+    ?assert(binary:match(Code, <<"import sys">>) =/= nomatch),
+    ?assert(binary:match(Code, <<"/test/priv">>) =/= nomatch),
+    ?assertEqual(nomatch, binary:match(Code, <<"load_model">>)).
 
 test_generate_code_escapes_paths() ->
     %% Test with path containing single quotes
@@ -130,13 +134,17 @@ test_setup_empty_models() ->
     ?assertEqual(nomatch, binary:match(Code, <<"load_model">>)).
 
 test_setup_with_models() ->
+    %% Even with models specified, preload only sets up paths
+    %% Models use thread-local storage and are lazily loaded per executor
     ok = barrel_embed_preload:setup(#{
         models => [{fastembed, <<"test-model">>}],
         venv => undefined
     }),
     ?assertEqual(true, py_preload:has_preload()),
     Code = py_preload:get_code(),
-    ?assert(binary:match(Code, <<"load_model('fastembed', 'test-model')">>) =/= nomatch).
+    %% Should have path setup but NO model loading
+    ?assert(binary:match(Code, <<"import sys">>) =/= nomatch),
+    ?assertEqual(nomatch, binary:match(Code, <<"load_model">>)).
 
 test_setup_from_app_env() ->
     %% Set app env
@@ -146,7 +154,9 @@ test_setup_from_app_env() ->
     ok = barrel_embed_preload:setup(),
 
     Code = py_preload:get_code(),
-    ?assert(binary:match(Code, <<"load_model('fastembed', 'env-model')">>) =/= nomatch),
+    %% Should have path setup but NO model loading
+    ?assert(binary:match(Code, <<"import sys">>) =/= nomatch),
+    ?assertEqual(nomatch, binary:match(Code, <<"load_model">>)),
 
     %% Cleanup
     application:unset_env(barrel_embed, preload_models),
