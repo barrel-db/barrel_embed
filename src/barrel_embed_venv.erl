@@ -231,23 +231,26 @@ pip_install(VenvPath, Packages) ->
 %% @private
 %% Run a shell command and return output
 run_cmd(Cmd) ->
+    run_cmd(Cmd, 60000).  %% 60 second default timeout
+
+run_cmd(Cmd, Timeout) ->
     Port = open_port(
         {spawn, Cmd},
         [exit_status, stderr_to_stdout, binary]
     ),
-    collect_output(Port, []).
+    collect_output(Port, [], Timeout).
 
-collect_output(Port, Acc) ->
+collect_output(Port, Acc, Timeout) ->
     receive
         {Port, {data, Data}} ->
-            collect_output(Port, [Data | Acc]);
+            collect_output(Port, [Data | Acc], Timeout);
         {Port, {exit_status, 0}} ->
             Output = iolist_to_binary(lists:reverse(Acc)),
             {ok, binary_to_list(Output)};
         {Port, {exit_status, Status}} ->
             Output = iolist_to_binary(lists:reverse(Acc)),
             {error, {exit_status, Status, binary_to_list(Output)}}
-    after 300000 ->
+    after Timeout ->
         port_close(Port),
         {error, timeout}
     end.

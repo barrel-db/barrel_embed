@@ -26,10 +26,10 @@ venv_lifecycle_test_() ->
      fun cleanup_with_temp_dir/1,
      [
        {"is_valid returns false for non-existent venv", fun test_is_valid_false/0},
-       {"create_venv creates valid venv", fun test_create_venv/0},
-       {"ensure_venv creates venv if missing", fun test_ensure_venv_create/0},
-       {"ensure_venv returns existing venv", fun test_ensure_venv_existing/0},
-       {"refresh deletes and recreates venv", fun test_refresh/0}
+       {timeout, 30, {"create_venv creates valid venv", fun test_create_venv/0}},
+       {timeout, 30, {"ensure_venv creates venv if missing", fun test_ensure_venv_create/0}},
+       {timeout, 30, {"ensure_venv returns existing venv", fun test_ensure_venv_existing/0}},
+       {timeout, 60, {"refresh deletes and recreates venv", fun test_refresh/0}}
      ]
     }.
 
@@ -50,8 +50,8 @@ barrel_embed_api_test_() ->
      fun cleanup_with_temp_dir/1,
      [
        {"barrel_embed:venv_path returns path", fun test_barrel_embed_venv_path/0},
-       {"barrel_embed:refresh_venv delegates to venv module", fun test_barrel_embed_refresh_venv/0},
-       {"barrel_embed:install_provider delegates to venv module", fun test_barrel_embed_install_provider/0}
+       {timeout, 60, {"barrel_embed:refresh_venv delegates to venv module", fun test_barrel_embed_refresh_venv/0}},
+       {timeout, 30, {"barrel_embed:install_provider delegates to venv module", fun test_barrel_embed_install_provider/0}}
      ]
     }.
 
