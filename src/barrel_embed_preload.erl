@@ -1,8 +1,12 @@
 %%%-------------------------------------------------------------------
-%%% @doc Model preloading for barrel_embed
+%%% @doc Python path setup for barrel_embed
 %%%
-%%% Uses py_preload from erlang_python 2.2+ to preload embedding models
-%%% during Python interpreter initialization, eliminating first-request latency.
+%%% Uses py_preload from erlang_python 2.2+ to set up Python paths and
+%%% venv during interpreter initialization.
+%%%
+%%% Note: Models are NOT preloaded here. They use thread-local storage
+%%% and are lazily loaded per executor thread to prevent numpy/torch
+%%% thread-local state corruption that causes segfaults.
 %%%
 %%% @end
 %%%-------------------------------------------------------------------
@@ -57,13 +61,14 @@ generate_preload_code(Models, Venv) ->
     generate_preload_code(Models, Venv, get_priv_dir()).
 
 %% @doc Generate Python preload code with explicit priv dir.
+%% Note: We no longer preload models here because models use thread-local storage.
+%% Each executor thread will lazily load its own model instance on first use.
+%% This prevents segfaults from numpy/torch thread-local state corruption.
 -spec generate_preload_code([{atom() | binary(), binary()}], binary() | string() | undefined, binary()) -> binary().
-generate_preload_code(Models, Venv, PrivDir) ->
+generate_preload_code(_Models, Venv, PrivDir) ->
     VenvCode = generate_venv_code(Venv),
     PathCode = generate_path_code(PrivDir),
-    ImportCode = <<"from barrel_embed.nif_api import load_model\n">>,
-    LoadCode = generate_load_calls(Models),
-    iolist_to_binary([VenvCode, PathCode, ImportCode, LoadCode]).
+    iolist_to_binary([VenvCode, PathCode]).
 
 %% @doc Clear any preload code.
 -spec clear() -> ok.
@@ -104,28 +109,11 @@ generate_path_code(PrivDir) ->
         <<"    sys.path.insert(0, priv_dir)\n">>
     ]).
 
-generate_load_calls([]) ->
-    <<>>;
-generate_load_calls(Models) ->
-    Lines = [generate_load_call(Provider, Model) || {Provider, Model} <- Models],
-    iolist_to_binary(Lines).
-
-generate_load_call(Provider, Model) ->
-    ProviderBin = ensure_binary(Provider),
-    ModelBin = ensure_binary(Model),
-    iolist_to_binary([
-        <<"load_model('">>, ProviderBin, <<"', '">>, ModelBin, <<"')\n">>
-    ]).
-
 get_priv_dir() ->
     case code:priv_dir(barrel_embed) of
         {error, bad_name} -> <<"priv">>;
         Dir -> unicode:characters_to_binary(Dir)
     end.
-
-ensure_binary(B) when is_binary(B) -> B;
-ensure_binary(L) when is_list(L) -> unicode:characters_to_binary(L);
-ensure_binary(A) when is_atom(A) -> atom_to_binary(A, utf8).
 
 escape_path(Path) ->
     %% Escape backslashes and single quotes for Python string

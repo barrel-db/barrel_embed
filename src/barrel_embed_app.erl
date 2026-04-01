@@ -13,15 +13,13 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    %% Collect models to preload from both preload_models and embedder config
+    %% Collect models config (used for path setup, not model preloading)
     Models = collect_preload_models(),
     Venv = application:get_env(barrel_embed, venv, undefined),
 
-    %% Check if erlang_python is already running
-    AlreadyRunning = whereis(py_sup) =/= undefined,
-
-    %% Setup preload BEFORE starting erlang_python so models are
-    %% preloaded during interpreter initialization
+    %% Setup Python path and venv BEFORE starting erlang_python
+    %% Note: Models are no longer preloaded here - they use thread-local storage
+    %% and are lazily loaded per executor thread on first use
     barrel_embed_preload:setup(#{models => Models, venv => Venv}),
 
     %% Ensure erlang_python is started (should already be via application deps)
@@ -35,23 +33,9 @@ start(_StartType, _StartArgs) ->
     %% Ensure priv dir is in Python path (in case erlang_python was already running)
     barrel_embed_py:init(#{venv => Venv}),
 
-    %% If erlang_python was already running, execute preload code manually
-    %% to ensure models are loaded in the existing interpreter
-    case AlreadyRunning of
-        true ->
-            case py_preload:get_code() of
-                undefined -> ok;
-                Code ->
-                    case py:exec(Code) of
-                        ok -> ok;
-                        {error, PreloadErr} ->
-                            error_logger:warning_msg(
-                                "Failed to execute preload code: ~p~n", [PreloadErr])
-                    end
-            end;
-        false ->
-            ok
-    end,
+    %% Note: We no longer preload models via py:exec() even if erlang_python was
+    %% already running. Models now use thread-local storage and are lazily loaded
+    %% per executor thread to prevent numpy/torch thread-local state corruption.
 
     barrel_embed_sup:start_link().
 
