@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-04-02
+
+### Added
+
+#### Managed Virtual Environment
+
+- Auto-create Python venv at `priv/.venv` on application startup
+- Auto-install provider dependencies when providers are initialized
+- uvloop is now required on Unix systems for optimal async performance
+- New `barrel_embed_venv` module for venv lifecycle management
+
+#### New API Functions
+
+- `barrel_embed:refresh_venv/0` - Recreate managed venv from scratch
+- `barrel_embed:install_provider/1` - Install dependencies for a specific provider
+- `barrel_embed:venv_path/0` - Get the managed venv path
+- `barrel_embed:has_uvloop/0` - Check if uvloop is installed
+
+#### Configuration
+
+- `{barrel_embed, [{venv_dir, "/custom/path"}]}` - Custom venv location
+- Providers auto-use managed venv when no explicit `venv` option is set
+
+### Changed
+
+- Providers (local, fastembed, splade, colbert, clip) now default to managed venv
+- uvloop installation failures now cause venv creation to fail (was silent warning)
+
 ## [2.1.1] - 2026-03-31
 
 ### Added
@@ -175,6 +203,7 @@ The `venv` option is still supported and recommended:
 - Application supervision tree with ETS-based rate limiting
 - Comprehensive EUnit test suite
 
+[2.2.0]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.2.0
 [2.1.1]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.1.1
 [2.0.1]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.0.1
 [2.0.0]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.0.0
