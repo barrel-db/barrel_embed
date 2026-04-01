@@ -4,24 +4,16 @@
 %%% Uses a Python port with sentence-transformers for CPU-based embeddings.
 %%% No GPU required, runs entirely on CPU.
 %%%
-%%% == Requirements ==
-%%% ```
-%%% pip install sentence-transformers
-%%% '''
+%%% Dependencies (sentence-transformers) are installed automatically
+%%% in the managed venv on first use.
 %%%
 %%% == Configuration ==
 %%% ```
 %%% Config = #{
-%%%     venv => "/path/to/.venv",                %% Virtualenv path (recommended)
-%%%     python => "python3",                     %% Python executable (if no venv)
 %%%     model => "BAAI/bge-base-en-v1.5",        %% Model name (default, 768 dims)
 %%%     timeout => 120000                        %% Timeout in ms (default)
 %%% }.
 %%% '''
-%%%
-%%% When `venv' is specified, the provider uses the venv's Python executable
-%%% and properly activates the venv environment. This is the recommended way
-%%% to use barrel_embed.
 %%%
 %%% == Supported Models ==
 %%% Any model from sentence-transformers or HuggingFace.
@@ -74,7 +66,9 @@ init(Config) ->
     Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
-    Venv = resolve_venv(maps:get(venv, Config, undefined)),
+
+    %% Use managed venv, auto-install deps
+    Venv = get_managed_venv(local),
 
     %% Build args for python -m barrel_embed
     Args = ["-m", "barrel_embed",
@@ -145,15 +139,12 @@ get_priv_dir() ->
     end.
 
 %% @private
-%% Resolve venv - use managed venv if none specified
-resolve_venv(undefined) ->
+%% Get managed venv path and install deps for provider
+get_managed_venv(Provider) ->
     case application:get_env(barrel_embed, managed_venv_path) of
         {ok, Path} ->
-            %% Auto-install deps for this provider
-            _ = barrel_embed_venv:install_deps(local),
+            _ = barrel_embed_venv:install_deps(Provider),
             Path;
         undefined ->
             undefined
-    end;
-resolve_venv(Venv) ->
-    Venv.
+    end.

@@ -78,14 +78,6 @@ Full control with sentence-transformers (requires ~2GB for PyTorch).
         model => "BAAI/bge-base-en-v1.5"
     }}
 }).
-
-%% Or use a custom venv
-{ok, State} = barrel_embed:init(#{
-    embedder => {local, #{
-        venv => "/absolute/path/to/.venv",
-        model => "BAAI/bge-base-en-v1.5"
-    }}
-}).
 ```
 
 ## Basic Usage

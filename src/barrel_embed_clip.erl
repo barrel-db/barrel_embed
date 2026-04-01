@@ -5,23 +5,16 @@
 %%% cross-modal embeddings. Both images and text are encoded into the
 %%% same vector space, enabling image-text similarity search.
 %%%
-%%% == Requirements ==
-%%% ```
-%%% pip install transformers torch pillow
-%%% '''
+%%% Dependencies (transformers, torch, pillow) are installed automatically
+%%% in the managed venv on first use.
 %%%
 %%% == Configuration ==
 %%% ```
 %%% Config = #{
-%%%     venv => "/path/to/.venv",                  %% Virtualenv path (recommended)
-%%%     python => "python3",                       %% Python executable (if no venv)
 %%%     model => "openai/clip-vit-base-patch32",   %% Model name (default)
 %%%     timeout => 120000                          %% Timeout in ms (default)
 %%% }.
 %%% '''
-%%%
-%%% When `venv' is specified, the provider uses the venv's Python executable
-%%% and properly activates the venv environment.
 %%%
 %%% == Cross-Modal Search ==
 %%% CLIP enables searching images with text queries and vice versa:
@@ -92,7 +85,9 @@ init(Config) ->
     Python = maps:get(python, Config, ?DEFAULT_PYTHON),
     Model = maps:get(model, Config, ?DEFAULT_MODEL),
     Timeout = maps:get(timeout, Config, ?DEFAULT_TIMEOUT),
-    Venv = resolve_venv(maps:get(venv, Config, undefined)),
+
+    %% Use managed venv, auto-install deps
+    Venv = get_managed_venv(clip),
 
     %% Validate model (warning only)
     validate_model(Model),
@@ -211,15 +206,12 @@ to_binary(S) when is_binary(S) -> S;
 to_binary(S) when is_list(S) -> list_to_binary(S).
 
 %% @private
-%% Resolve venv - use managed venv if none specified
-resolve_venv(undefined) ->
+%% Get managed venv path and install deps for provider
+get_managed_venv(Provider) ->
     case application:get_env(barrel_embed, managed_venv_path) of
         {ok, Path} ->
-            %% Auto-install deps for this provider
-            _ = barrel_embed_venv:install_deps(clip),
+            _ = barrel_embed_venv:install_deps(Provider),
             Path;
         undefined ->
             undefined
-    end;
-resolve_venv(Venv) ->
-    Venv.
+    end.
