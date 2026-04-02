@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-04-02
+
+### Changed
+
+- Removed erlang_python dependency from documentation
+- Updated README to reflect port-based Python integration
+- Regenerated rebar.lock without erlang_python
+
 ## [2.2.0] - 2026-04-02
 
 ### Added
@@ -29,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Providers auto-use managed venv when no explicit `venv` option is set
 
 ### Changed
+
+#### Restored Port-Based Backend
+
+- **Breaking**: Reverted from erlang_python NIF to port-based JSON communication
+- Removed erlang_python dependency (no more NIF compilation required)
+- Restored `barrel_embed_port_server` for Python process management
+- Async Python server with request multiplexing via newline-delimited JSON
+- Simpler deployment: no NIF compilation, works on any platform with Python
 
 - Providers (local, fastembed, splade, colbert, clip) now default to managed venv
 - uvloop installation failures now cause venv creation to fail (was silent warning)
@@ -203,6 +219,7 @@ The `venv` option is still supported and recommended:
 - Application supervision tree with ETS-based rate limiting
 - Comprehensive EUnit test suite
 
+[2.2.1]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.2.1
 [2.2.0]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.2.0
 [2.1.1]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.1.1
 [2.0.1]: https://github.com/barrel-db/barrel_embed/releases/tag/v2.0.1

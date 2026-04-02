@@ -22,7 +22,7 @@ A standalone library for generating text and image embeddings with multiple prov
 - Multiple embedding providers with automatic fallback
 - Provider chain configuration for high availability
 - Batch embedding with configurable chunk size
-- High-performance Python integration via erlang_python NIF
+- Python integration via async port server (no NIF dependency)
 - Sparse, multi-vector, and cross-modal embeddings
 
 ## Providers
@@ -47,7 +47,7 @@ Add to your `rebar.config`:
 ]}.
 ```
 
-**Note**: barrel_embed uses [erlang_python](https://github.com/openmetrics/erlang_python) for Python integration via NIF. Ensure your system has Python 3.9+ installed.
+**Note**: Local Python providers require Python 3.9+ installed on your system.
 
 ## Quick Start
 
@@ -211,14 +211,13 @@ Score = barrel_embed_colbert:maxsim_score(QueryVecs, DocVecs).
 
 ## Application Configuration
 
-Python concurrency is managed by erlang_python. Configure in `sys.config`:
+Configure the managed venv path in `sys.config`:
 
 ```erlang
 %% sys.config
 [
-    {erlang_python, [
-        {num_workers, 4},           %% Number of Python worker threads
-        {num_subinterp_workers, 4}  %% Sub-interpreters (Python 3.12+)
+    {barrel_embed, [
+        {managed_venv_path, "/path/to/.venv"}  %% Optional: custom venv path
     ]}
 ].
 ```
