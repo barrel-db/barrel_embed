@@ -1,3 +1,8 @@
+
+> [!IMPORTANT]
+> This repository is archived. `barrel_embed` now lives in the Barrel umbrella
+> at [barrel-db/barrel](https://github.com/barrel-db/barrel), under
+> `apps/barrel_embed`. Development, issues, and releases happen there.
 <div align="center">
 
 # barrel_embed
